@@ -1,6 +1,6 @@
 # irrigation_et0 — Design Spec
-**Datum:** 2026-04-28  
-**Status:** Entwurf — zur Implementierung freigegeben
+**Datum:** 2026-04-29 (v2 — erweitert um Hot-Reload, HACS, Tests, Reliability)  
+**Status:** Final — zur Implementierung freigegeben
 
 ---
 
@@ -15,33 +15,53 @@ Eine native Home Assistant Custom Component (`irrigation_et0`) zur wissenschaftl
 ### 2.1 Komponentenstruktur
 
 ```
-custom_components/irrigation_et0/
-  __init__.py              # Setup, Config Entry, Services
-  config_flow.py           # UI-geführte Erstkonfiguration
-  coordinator.py           # Zentrale Logik, Scheduling, Trafo-Sequenz
-  et0_calculator.py        # FAO-56 Penman-Monteith (via PyETo)
-  water_balance.py         # NFK-Bilanzmodell pro Zone
-  gts_calculator.py        # Grünlandtemperatursumme
-  storage.py               # Persistenz (HA Storage API)
-  sensor.py                # ET₀, NFK, Timer, Prognose-Sensoren
-  binary_sensor.py         # Frost-Warnung
-  switch.py                # Zonen-Status, Wochentage
-  select.py                # Automatik-Modus pro Zone, ET-Methode global
-                           # ET-Methode-Änderung löst async_call_later → hass.config_entries.async_reload aus
-                           # damit bedingte Sensoren (et0_hargreaves / et0_haude) neu registriert werden
-  number.py                # Dauer, Intervall, Durchfluss
-  button.py                # Manueller Start pro Zone
-  time.py                  # Startzeit, Ansaat-Zeitfenster (von/bis)
-  const.py                 # Konstanten
-  manifest.json            # HACS-Metadaten
-  translations/
-    de.json
-    en.json
-  services.yaml
-
-custom_components/irrigation_et0_card/   # Lovelace Custom Card
-  irrigation-et0-card.js
-  irrigation-et0-card-editor.js
+irrigation-ha/                              # Repo-Root (HACS)
+  custom_components/irrigation_et0/
+    __init__.py              # Setup, Config Entry, Services, Recovery
+    config_flow.py           # UI-Erstkonfiguration + OptionsFlow (Laufzeit-Edit)
+    coordinator.py           # DataUpdateCoordinator, Scheduling, Trafo-Sequenz, Queue
+    et0_calculator.py        # FAO-56 Penman-Monteith / Hargreaves / Haude
+    water_balance.py         # NFK-Bilanzmodell pro Zone
+    gts_calculator.py        # Grünlandtemperatursumme
+    storage.py               # Persistenz (HA Storage API, Version + Migration)
+    diagnostics.py           # async_get_config_entry_diagnostics (anonymisiert)
+    repairs.py               # Repair Issues bei Sensor-Verlust
+    recovery.py              # Startup-Recovery offener Ventile + verpasster Tage
+    sensor.py                # ET₀, NFK, Timer, Prognose-Sensoren
+    binary_sensor.py         # Frost-Warnung, Trafo-Problem, Sensor-Verfügbarkeit
+    switch.py                # Zonen-Status, Wochentage, Dry-Run-Switch (global)
+    select.py                # Automatik-Modus pro Zone, ET-Methode global
+                             # ET-Methode-Änderung → async_call_later → hass.config_entries.async_reload
+    number.py                # Dauer, Schwellwert, Zielwert, Durchfluss, C&S, Ansaat-Params
+    button.py                # Manueller Start pro Zone
+    time.py                  # Startzeit, Ansaat-Zeitfenster (von/bis)
+    const.py                 # Konstanten, DOMAIN, Defaults, Event-Namen
+    manifest.json            # HACS-Metadaten (siehe §14.2)
+    services.yaml            # Service-Definitionen (siehe §15)
+    translations/
+      de.json
+      en.json
+  custom_components/irrigation_et0_card/   # Lovelace Custom Card
+    irrigation-et0-card.js
+    irrigation-et0-card-editor.js
+  tests/                                   # pytest-homeassistant-custom-component
+    conftest.py
+    test_et0_calculator.py
+    test_water_balance.py
+    test_coordinator.py
+    test_config_flow.py
+    test_recovery.py
+    fixtures/
+      fao_annex6_examples.json             # Referenzwerte FAO-56 Annex 6
+  .github/workflows/
+    ci.yml                                 # pytest + HA-Versionen-Matrix
+    hacs-validate.yml                      # HACS-Validator
+    release.yml                            # Auto-Tag + GitHub Release
+  hacs.json                                # HACS-Metadaten (Repo-Level)
+  README.md                                # Installation, Config, Screenshots
+  info.md                                  # HACS-Beschreibung
+  LICENSE                                  # MIT
+  pyproject.toml                           # uv/ruff/pytest-Config
 ```
 
 ### 2.2 Abhängigkeiten
@@ -49,7 +69,103 @@ custom_components/irrigation_et0_card/   # Lovelace Custom Card
 - `PyETo` — FAO-56 ET₀-Berechnung (Python-Bibliothek)
 - `homeassistant.helpers.storage` — Persistenz NFK-Verlauf
 - `homeassistant.helpers.event` — `async_track_time_change`, `async_track_point_in_time`
-- HA Recorder — automatische Sensor-Historie
+- `homeassistant.helpers.update_coordinator.DataUpdateCoordinator` — zentraler Refresh
+- `homeassistant.helpers.device_registry` — Zone als Device
+- `homeassistant.helpers.issue_registry` — Repair Flows
+- HA Recorder + History API — Historie und Catch-up
+
+### 2.3 Coordinator-Pattern
+
+Eine Instanz `IrrigationCoordinator(DataUpdateCoordinator)` pro Config Entry:
+
+```python
+class IrrigationCoordinator(DataUpdateCoordinator):
+    update_interval = timedelta(minutes=5)   # Polling für Sensor-Refresh, Frost-Check
+    # _async_update_data: liest Wetter-Sensoren, aktualisiert Frost-Status,
+    #   prüft Trafo-Verfügbarkeit, gibt dict für alle abhängigen Entities zurück
+    # Tägliche 00:05-Berechnung läuft separat via async_track_time_change
+    #   und ruft am Ende coordinator.async_request_refresh() auf
+```
+
+Alle Sensor-/Switch-/Select-Entities sind `CoordinatorEntity` und teilen sich den Coordinator-Datenstand.
+
+### 2.4 Device Registry
+
+Pro Anlage:
+- 1 Hub-Device `Bewässerung {anlage}` (Manufacturer "irrigation_et0", Model "FAO-56")
+- N Zone-Devices `Zone {name}`, jeweils `via_device=Hub` — gruppiert alle Zone-Entities
+
+### 2.5 unique_id-Strategie
+
+```
+{config_entry.entry_id}_{zone_id}_{platform_key}    # Zone-Entities
+{config_entry.entry_id}_{global_key}                # Globale Entities
+```
+
+`zone_id` ist ein vom Coordinator vergebener UUID4-String (in Storage persistiert), nicht der Anzeigename. Anzeigename darf umbenannt werden ohne Entity-IDs zu zerstören.
+
+### 2.6 OptionsFlow
+
+Erst-Setup via Config Flow (§3). Laufzeit-Änderungen via OptionsFlow:
+- Wetter-Sensoren neu zuordnen
+- Frost-Schwelle, Standortdaten ändern
+- Zonen hinzufügen / entfernen / umbenennen
+- Trafo-Entity wechseln
+
+OptionsFlow-Save → `hass.config_entries.async_reload(entry_id)` → Coordinator + Entities neu erstellt; Storage (NFK-Verlauf) bleibt erhalten.
+
+### 2.7 Diagnostics
+
+`diagnostics.py` exportiert via `async_get_config_entry_diagnostics`:
+- Konfiguration (Sensor-Entity-IDs anonymisiert via `async_redact_data`)
+- Aktueller NFK-Stand pro Zone
+- Letzte 14 Tage Bilanz
+- ET₀-Methode + letzte Berechnungswerte
+- Queue-Zustand, laufende Zone, Trafo-Status
+- Eingangs-Sensorwerte zum Zeitpunkt des Exports
+
+### 2.8 Repairs
+
+Wenn Wetter- oder Ventil-Entity verschwindet (`state == None` für >24h):
+```python
+ir.async_create_issue(
+    hass, DOMAIN, f"missing_entity_{entity_id}",
+    severity=ir.IssueSeverity.WARNING,
+    translation_key="missing_entity",
+    learn_more_url="https://github.com/.../wiki/troubleshooting",
+)
+```
+Repair-Flow im UI bietet: alternative Entity wählen ODER auf Standardwert zurückfallen ODER Issue ignorieren.
+
+### 2.9 Hot-Reload-Fähigkeit (kein HA-Neustart bei Updates)
+
+**Anforderung:** Versions-Updates der Integration via HACS, OptionsFlow-Änderungen, ET-Methoden-Wechsel und Card-Updates dürfen KEINEN Home-Assistant-Neustart erfordern. Alle Änderungen werden via Config-Entry-Reload (`hass.config_entries.async_reload(entry_id)`) durchgeführt.
+
+**Implementierungs-Regeln:**
+
+1. **Vollständig im Config Entry**: Kein State, keine Listener, keine globalen Imports außerhalb von `async_setup_entry`. `hass.data[DOMAIN][entry_id]` ist die einzige State-Wurzel und wird in `async_unload_entry` vollständig geleert.
+
+2. **Listener-Tracking**: Jeder `async_track_*`-Aufruf gibt eine Unsubscribe-Funktion zurück. Diese MUSS via `entry.async_on_unload(unsub)` registriert werden. So werden bei Reload alle Timer/Trigger sauber abgemeldet.
+
+3. **Coordinator-Lifecycle**: Coordinator wird in `async_setup_entry` erstellt und in `async_unload_entry` via `coordinator.async_shutdown()` beendet. `async_shutdown` storniert pending `async_track_point_in_time`-Callbacks und schließt offene Ventile sicher.
+
+4. **Storage über Reloads stabil**: Storage-Version + Migrationen (siehe §9.4) — beim Schema-Update nur die Daten migriert, keine Entity-IDs verändert.
+
+5. **Konfigurations-Listener**: 
+   ```python
+   entry.async_on_unload(entry.add_update_listener(async_reload_entry))
+   ```
+   `async_reload_entry` ruft `hass.config_entries.async_reload(entry.entry_id)` auf — bei jeder Options-Änderung wird sauber neu geladen ohne HA-Neustart.
+
+6. **PyETo-Import**: Top-Level-Import in `et0_calculator.py`. Bei Versions-Update der Bibliothek kommt ein HA-Neustart **NICHT** drumherum (Python-Modul-Cache) — daher: PyETo-Code für unsere Anwendung **vendor'n** (eigene `_pyeto_vendor.py`-Datei mit nur den 6 benötigten Funktionen). Dann ist auch ein Bibliotheks-Update neustart-frei.
+
+7. **Frontend-Card Cache-Bust**: Card-File wird via `<script src="/local/.../card.js?v={VERSION}">` mit Versions-Query-String eingebunden. Bei Update ändert sich `VERSION` (im Manifest gepflegt) → Browser lädt neu, kein HA-Neustart nötig.
+
+8. **Regression-Test**: Test `test_unload_reload_cycle` in `tests/test_coordinator.py` prüft: Setup → 10× Reload → Unload → keine offenen Listener, keine Memory-Leaks, kein doppelter `unique_id`-Konflikt.
+
+**Akzeptable Ausnahmen:**
+- Hinzufügen NEUER Platform-Files (z.B. erstmals `time.py`) erfordert HA-Reload — bei zukünftigen Erweiterungen sehr selten.
+- Änderungen an `manifest.json` `requirements` (neue Python-Pakete) erfordern HA-Neustart, daher: neue Pflicht-Deps werden vermieden, Soft-Deps werden lazy importiert.
 
 ---
 
@@ -249,6 +365,8 @@ async_track_time_change(hass, _daily_calc, hour=0, minute=5, second=0)
 #   und registriert _start_zone via async_track_point_in_time neu (Semi/Voll)
 # _daily_calc registriert für jede Ansaat-Zone den ersten _ansaat_tick des Tages
 #   (= ansaat_von-Uhrzeit heute, sofern modus==Ansaat und status==ON und kein Frost)
+# _daily_calc feuert am Ende: hass.bus.async_fire("irrigation_et0_calc_done",
+#   {"et0": ..., "methode": ..., "datum": today})
 
 # Startzeiten pro Zone — Semi/Voll (one-shot, nach Zonenende neu registriert)
 async_track_point_in_time(hass, _start_zone, next_start_dt)
@@ -310,7 +428,11 @@ async_track_time_interval(hass, _trafo_failsafe, timedelta(minutes=5))
 | `sensor.et0_haude` | sensor | ET₀ Haude (mm) — nur wenn Haude aktiv |
 | `sensor.gts` | sensor | Grünlandtemperatursumme |
 | `binary_sensor.frost_warnung` | binary_sensor | Frost aktiv (on/off) |
+| `binary_sensor.trafo_problem` | binary_sensor | Trafo unavailable oder Soll/Ist-Mismatch (siehe §9a.3) |
+| `binary_sensor.et_fallback_active` | binary_sensor | Eine Fallback-ET-Methode ist aktiv weil Inputs fehlen (§9a.2) |
+| `binary_sensor.sensoren_ok` | binary_sensor | Alle konfigurierten Wetter-Sensoren liefern valide Werte |
 | `select.et_methode` | select | Aktive ET₀-Methode: Penman-Monteith / Hargreaves / Haude |
+| `switch.irrigation_dry_run` | switch | Dry-Run global — Berechnung ja, Ventil-Aktion nein (§17.1) |
 
 ---
 
@@ -323,20 +445,91 @@ Alle Sensor-Entities werden automatisch vom HA-Recorder in SQLite gespeichert. S
 `sensor.{zone}_nfk` als `state_class: measurement` → Long-term Statistics in HA. Kein externes InfluxDB nötig.
 
 ### NFK-Zustandspersistenz über Neustarts
-`homeassistant.helpers.storage` speichert täglich:
+`homeassistant.helpers.storage` mit `STORAGE_VERSION = 1` speichert:
 
 ```json
 {
-  "zone_id": {
-    "nfk_aktuell": 9.8,
-    "letzte_berechnung": "2026-04-28",
-    "verlauf": [
-      {"datum": "2026-04-22", "nfk_ende": 6.2, "etc": 2.3, "regen": 0, "beregnung": 4.8},
-      ...
-    ]
+  "version": 1,
+  "data": {
+    "zones": {
+      "<zone_uuid>": {
+        "name": "Rasenkreis 1",
+        "nfk_aktuell": 9.8,
+        "letzte_berechnung": "2026-04-28",
+        "ansaat_start_datum": null,
+        "verlauf": [
+          {"datum": "2026-04-22", "nfk_ende": 6.2, "etc": 2.3, "regen": 0, "beregnung": 4.8},
+          ...
+        ],
+        "scheduling": {
+          "next_start_dt": "2026-04-29T19:00:00+00:00",
+          "next_ansaat_tick": null,
+          "running_since": null,
+          "active_zone_remaining_min": 0,
+          "queue": []
+        }
+      }
+    },
+    "globals": {
+      "gts": 124.3,
+      "gts_jahr": 2026,
+      "et_methode": "fao56",
+      "letzte_et0_berechnung": "2026-04-28T00:05:00+00:00"
+    }
   }
 }
 ```
+
+Verlauf-Retention: 365 Tage rolling (älter wird beim täglichen Save abgeschnitten).
+
+### 9.4 Storage-Migrationen
+Bei Schema-Updates (`STORAGE_VERSION` erhöht) wird in `_async_migrate_func` migriert. Migration ist **rückwärtskompatibel** — alte Felder werden gemappt, fehlende Felder mit Defaults gefüllt. Tests in `test_storage_migration.py` decken jede Schema-Version ab.
+
+### 9.5 Catch-up nach Ausfall
+Wenn beim Startup oder beim ersten 00:05-Lauf festgestellt wird, dass `letzte_berechnung < heute - 1`:
+- Recorder-History wird via `homeassistant.components.recorder.history.get_significant_states` ausgelesen
+- Für jeden verpassten Tag: Tagesaggregate (T_min, T_max, RH_min, RH_max, Solar, Wind, Niederschlag) rekonstruieren
+- ET₀ + ETc + NFK rückwirkend berechnen, Verlauf eintragen
+- `letzte_berechnung` auf heute setzen
+- Wenn History-Lücken zu groß sind (>3 fehlende Tage): nicht extrapolieren, sondern Repair-Issue erstellen mit Hinweis auf manuelle NFK-Korrektur
+
+---
+
+## 9a. Reliability & Recovery
+
+### 9a.1 Startup-Recovery offener Ventile
+In `__init__.async_setup_entry` nach Coordinator-Init:
+1. Trafo-State lesen. Wenn `unavailable`: Repair-Issue, alle automatischen Aktionen blockiert.
+2. Für jedes Zonen-Ventil: aktuellen State lesen.
+   - `on` und Storage `running_since` gesetzt: berechne `verbleibend = dauer - (now - running_since)`. Wenn `verbleibend > 0`: Zone in Queue als laufend markieren, Timer fortsetzen. Wenn `verbleibend ≤ 0`: Ventil schließen, Trafo prüfen.
+   - `on` und kein `running_since` (HA-Crash, unbekannter Zustand): hart schließen + Log-Warning + Event `irrigation_et0_unexpected_state`.
+   - `off`: nichts tun.
+3. Trafo-Failsafe nach Recovery aufrufen: alle Ventile zu, dann Trafo OFF.
+
+### 9a.2 Sensor-Ausfälle
+Wetter-Sensor liefert `unavailable`/`unknown`/`None` oder unsinnige Werte:
+- **Clamp-Limits** auf jeden Eingangswert: T ∈ [-50, 60]°C, RH ∈ [0, 100]%, Wind ∈ [0, 50] m/s, Solar ∈ [0, 1500] W/m², Niederschlag ∈ [0, 200] mm/d. Werte außerhalb: auf Limit clampen + Log-Warning.
+- **Fallback-Kette für ET₀-Berechnung**:
+  1. Aktive Methode (PM / Hargreaves / Haude) wenn alle Inputs valid
+  2. Wenn PM-Inputs fehlen: automatisch auf Hargreaves degradieren (nur T_min/T_max nötig) — Sensor `binary_sensor.et_fallback_active` = on
+  3. Wenn auch Hargreaves-Inputs fehlen: letzten bekannten ET₀-Wert verwenden, Log-Warning, Repair-Issue erstellen
+  4. Wenn keine History: ET₀ = 0 (NFK bleibt stabil) + Issue
+- Beim Wechsel auf Fallback wird `binary_sensor.et_fallback_active` aktiv und Event gefeuert.
+
+### 9a.3 Trafo-Probleme
+- `binary_sensor.trafo_problem` = on wenn:
+  - Trafo-Entity `unavailable` für >2 min
+  - Trafo soll ON sein laut Coordinator, ist aber OFF (Mismatch >30s)
+  - Trafo soll OFF sein laut Coordinator, ist aber ON nach Failsafe (>30s)
+- Wenn aktiv: alle automatischen + manuellen Starts blockiert; laufende Zone wird gestoppt; Notification erstellt.
+
+### 9a.4 Mismatch-Detection
+Coordinator vergleicht alle 5 Minuten Soll-Zustand mit Ist-Zustand aller Ventile. Bei Abweichung >30s:
+- Falls Soll=ON, Ist=OFF: Repair-Issue, evtl. Hardware-Problem, keine automatische Korrektur.
+- Falls Soll=OFF, Ist=ON: Aggressive Schließung (Ventil OFF Befehl alle 5s für 30s), dann Repair-Issue.
+
+### 9a.5 Power-Loss-Safety
+Bei jedem Zonen-Start wird `zones.<uuid>.scheduling.running_since` (siehe §9.3) sofort persistiert via `Store.async_save()` (kein Delay-Coalescing). Bei jedem normalen Stop wird der Eintrag auf `null` gesetzt und ebenfalls sofort persistiert. Ist beim Startup ein `running_since` vorhanden, läuft die Recovery-Logik aus §9a.1. Der reguläre Tagesabschluss-Save um 00:05 nutzt das normale Coalescing.
 
 ---
 
@@ -394,3 +587,296 @@ Vorhandene `input_number`, `input_select`, `input_datetime`, `switch` und `senso
 - [x] **Card Sprache**: i18n (DE/EN) — `translations/de.json` und `translations/en.json` wie in Section 2.1 vorgesehen.
 - [x] **Cycle & Soak**: pro Zone konfigurierbar (via `{zone}_cs_zyklen` / `{zone}_cs_pause` in Section 8).
 - [x] **Vorschau-Berechnung NFK-Prognose**: Morgen-Prognose via `weather.get_forecasts` Service (DWD `weather.*`-Entity). ETc_morgen = ET₀_hargreaves_prognose × Kc × Ka; Niederschlag aus `precipitation`-Feld. `{zone}_bucket_prognose` = nfk_heute − ETc_morgen + regen_morgen.
+- [x] **Hot-Reload ohne HA-Neustart**: Pflicht-Anforderung. Siehe §2.9.
+
+---
+
+## 14. HACS-Integration
+
+### 14.1 `hacs.json` (Repo-Root)
+```json
+{
+  "name": "Irrigation ET₀",
+  "render_readme": true,
+  "country": ["DE", "AT", "CH"],
+  "homeassistant": "2024.10.0",
+  "zip_release": false
+}
+```
+
+### 14.2 `manifest.json`
+```json
+{
+  "domain": "irrigation_et0",
+  "name": "Irrigation ET₀",
+  "version": "0.1.0",
+  "documentation": "https://github.com/<user>/irrigation-ha",
+  "issue_tracker": "https://github.com/<user>/irrigation-ha/issues",
+  "codeowners": ["@<user>"],
+  "iot_class": "local_polling",
+  "integration_type": "service",
+  "dependencies": [],
+  "requirements": [],
+  "config_flow": true
+}
+```
+**Hinweis**: Keine `requirements`-Einträge — PyETo ist vendored (siehe §2.9 Punkt 6), damit kein HA-Neustart bei Updates.
+
+### 14.3 Brands-PR
+Logo + Icon (256×256 PNG) an `home-assistant/brands` PR-en, separater Workflow nach Veröffentlichung.
+
+### 14.4 README-Pflichtinhalte
+- Screenshots der 4 Karten
+- Installation via HACS (Custom Repo, später Default)
+- Config-Flow-Walkthrough mit Bildern
+- Troubleshooting-FAQ
+- Versionierung (semver, CHANGELOG)
+- Lizenz, Beitragsleitfaden
+
+### 14.5 Releases
+- Semver-Tags `v0.1.0`, `v0.1.1` …
+- GitHub Action `release.yml`: bei Push auf `main` mit Tag → automatisch Release erstellen, ZIP nicht nötig (HACS klont direkt)
+- CHANGELOG.md gepflegt (Keep a Changelog)
+
+---
+
+## 15. Services (`services.yaml`)
+
+**Zonen-Identifikation in Services:** Der Service nimmt eine `zone`-Entity (das `select.{zone}_modus`-Entity dieser Zone) als Selector. Aus der Entity-ID extrahiert der Service-Handler die interne `zone_id` (UUID). So bleibt der UI-Picker bedienbar, ohne dass der User UUIDs eintippen muss.
+
+```yaml
+start_zone:
+  name: Zone starten
+  description: Startet eine Zone manuell für N Minuten
+  fields:
+    zone:
+      required: true
+      selector:
+        entity:
+          integration: irrigation_et0
+          domain: select
+    dauer_min:
+      required: true
+      selector: { number: { min: 1, max: 240, unit_of_measurement: min } }
+
+stop_zone:
+  name: Zone stoppen
+  fields:
+    zone:
+      required: true
+      selector:
+        entity: { integration: irrigation_et0, domain: select }
+
+stop_all:
+  name: Alle Zonen stoppen
+  description: Stoppt alle Zonen und schaltet Trafo ab
+
+recalculate_now:
+  name: ET₀ jetzt neu berechnen
+  description: Triggert sofort die tägliche Berechnung außer der Reihe
+
+set_nfk:
+  name: NFK manuell setzen
+  description: Korrigiert den NFK-Wert einer Zone (z.B. nach Starkregen-Sensor-Lücke)
+  fields:
+    zone:
+      required: true
+      selector:
+        entity: { integration: irrigation_et0, domain: select }
+    value_mm:
+      required: true
+      selector: { number: { min: 0, max: 100, unit_of_measurement: mm } }
+
+skip_next_run:
+  name: Nächsten Lauf überspringen
+  fields:
+    zone:
+      required: true
+      selector:
+        entity: { integration: irrigation_et0, domain: select }
+
+import_node_red_state:
+  name: NFK aus Node-RED importieren
+  description: Migrations-Service — liest input_number.{zone}_bucket-Entities und übernimmt Werte als NFK-Startwerte
+```
+
+Alle Services sind in `__init__.async_setup_entry` via `hass.services.async_register` registriert und in `async_unload_entry` wieder entfernt (für sauberen Reload).
+
+---
+
+## 16. Event Bus (für Automatisierungen)
+
+```python
+hass.bus.async_fire("irrigation_et0_zone_started",
+    {"zone_id": ..., "name": ..., "modus": ..., "dauer_min": ...})
+
+hass.bus.async_fire("irrigation_et0_zone_finished",
+    {"zone_id": ..., "name": ..., "beregnet_mm": ..., "abgebrochen": False})
+
+hass.bus.async_fire("irrigation_et0_frost_lock",
+    {"temperatur": ..., "schwelle": ...})
+
+hass.bus.async_fire("irrigation_et0_frost_release",
+    {"temperatur": ...})
+
+hass.bus.async_fire("irrigation_et0_calc_done",
+    {"et0": ..., "methode": ..., "datum": ...})
+
+hass.bus.async_fire("irrigation_et0_fallback_active",
+    {"reason": "missing_pm_inputs", "fallback_method": "hargreaves"})
+
+hass.bus.async_fire("irrigation_et0_unexpected_state",
+    {"entity_id": ..., "expected": ..., "actual": ...})
+```
+
+Alle Events sind in `const.py` als Konstanten definiert (`EVENT_ZONE_STARTED` etc.).
+
+---
+
+## 17. UX & Sicherheit
+
+### 17.1 Dry-Run-Modus
+Globaler Switch `switch.irrigation_dry_run`:
+- Wenn ON: alle Berechnungen laufen normal, Events werden gefeuert, Sensoren aktualisiert — aber Trafo + Ventile werden NICHT geschaltet
+- Default beim ersten Setup: ON (sicheres Onboarding)
+- User schaltet bewusst OFF wenn er die Werte plausibel findet
+
+### 17.2 NFK-manuelle-Korrektur
+- Service `irrigation_et0.set_nfk` (siehe §15)
+- Im UI: Karte 3 enthält pro Zone einen "NFK korrigieren"-Button → Dialog mit Slider + Speichern
+
+### 17.3 Notifications (HA persistent_notification)
+Bei kritischen Ereignissen wird `persistent_notification.create` aufgerufen:
+- Frost-Lock aktiviert (mit Temperatur)
+- Sensor-Ausfall (Wetter oder Ventil)
+- Trafo-Problem
+- ET-Fallback aktiv
+- Unerwartetes Ventil-State (Crash-Recovery)
+- Migration nötig (Storage-Schema-Update)
+
+User kann Notifications individuell abschalten via Options.
+
+### 17.4 Trockenlauf-Visualisierung
+Karte 1 zeigt bei Dry-Run einen orangen Banner "DRY-RUN: Ventile werden NICHT geschaltet".
+Karte 4 zeigt im Verlauf eine zusätzliche Linie "geplante Beregnung" wenn Dry-Run aktiv war (graue Striche).
+
+### 17.5 Manueller Override
+Wenn Zone via Auto-Modus läuft und User drückt "Stop"-Button:
+- Aktuelle Bewässerung wird sauber gestoppt (Ventil OFF, Trafo OFF wenn keine andere Zone)
+- `next_start_dt` für heute wird auf "morgen" gesetzt (heute keine erneute Auslösung)
+- Event `irrigation_et0_zone_finished` mit `abgebrochen: True`
+
+---
+
+## 18. Tests
+
+### 18.1 Test-Stack
+- `pytest`
+- `pytest-homeassistant-custom-component` (HA-Test-Fixtures)
+- `pytest-asyncio`
+- `pytest-cov` (Ziel: ≥85% Coverage)
+- `freezegun` für Zeitsteuerung
+
+### 18.2 Test-Module
+| Datei | Coverage |
+|---|---|
+| `test_et0_calculator.py` | FAO-56 Annex 6 Beispielwerte (Vergleich mit Referenztabelle ±0.1 mm), Hargreaves, Haude, Edge-Cases (negative Solarstrahlung, T_min > T_max) |
+| `test_water_balance.py` | NFK-Bilanz: Start-Werte, Clamp 0/max, Regen-Übersättigung, Beregnung negativ unmöglich, Verlauf-Retention 365d |
+| `test_gts_calculator.py` | Gewichte Jan/Feb/restl., Reset 1.1., negative T ignoriert |
+| `test_coordinator.py` | Trafo-Sequenz (ON-Wait-ON, OFF-Wait-Check), Queue (FIFO, parallele Anfragen), Frost-Lock blockiert alle Modi, `{zone}_status=OFF` stoppt nur diese Zone, Fallback-Kette PM→Hargreaves→Last→0 |
+| `test_recovery.py` | HA-Crash mit offenem Ventil → Recovery, missed days catch-up, Trafo-Mismatch-Detection |
+| `test_config_flow.py` | Erst-Setup alle Schritte, OptionsFlow-Reload, ungültige Inputs (negative Höhe, Lat>90) |
+| `test_storage_migration.py` | Migration v1→v2 (Platzhalter für Zukunft), Default-Werte für fehlende Felder |
+| `test_services.py` | Alle Services mit gültigen + ungültigen Argumenten, zone-Entity → zone_id Mapping |
+| `test_repairs.py` | Missing-Entity-Issue erstellt, Resolve-Flow, Auto-Resolve wenn Entity zurückkehrt |
+| `test_diagnostics.py` | Diagnostics-Export enthält alle Sektionen, sensible Daten redacted |
+| `test_unload_reload_cycle.py` | Setup → 10× Reload → Unload, keine offenen Listener (Hot-Reload-Garantie aus §2.9) |
+| `test_card_data_contract.py` | Sensor-Entitäten liefern erwartete Attribute für Custom Card |
+
+### 18.3 CI (`.github/workflows/ci.yml`)
+- Matrix: HA-Versionen `["2024.10.0", "2025.1.0", "latest"]`, Python `["3.12", "3.13"]`
+- Schritte: lint (ruff), type-check (mypy), pytest mit Coverage, hassfest
+- Bei PR: Coverage-Diff-Kommentar via `pytest-cov` + `codecov`
+
+### 18.4 HACS-Validator
+`.github/workflows/hacs-validate.yml` läuft `hacs/action@main` bei jedem Push.
+
+### 18.5 Manuelle Test-Checkliste
+- Trafo-Failsafe: Ventil manuell offen lassen → nach max. 5 min Trafo OFF
+- Frost-Auslöser: Sensor-Wert <4°C → laufende Zone stoppt + Notification
+- HA-Restart mid-zone: Ventil bleibt offen → nach Reboot Recovery + Timer-Resume
+- HACS-Update: Version bump → Reload via OptionsFlow → kein HA-Neustart
+- Sensor-Ausfall: Wetter-Sensor `unavailable` → Fallback-Kette greift
+- Catch-up: HA 3 Tage aus → Startup berechnet rückwirkend
+
+---
+
+## 19. Rollout-Plan (Node-RED → irrigation_et0)
+
+### Phase 1: Lokale Entwicklung (Wochen 1–2)
+- Repo `irrigation-ha` mit Struktur aus §2.1 anlegen
+- Symlink `~/.homeassistant/custom_components/irrigation_et0` → `~/irrigation-ha/custom_components/irrigation_et0`
+- Pytest-Suite + GitHub Actions einrichten
+- Coordinator + ET₀-Calculator + Water-Balance + Storage zuerst (ohne UI)
+
+### Phase 2: Schatten-Betrieb (Wochen 3–6)
+- Integration installiert, **Dry-Run = ON** (Default)
+- Alte Node-RED-Flows laufen parallel
+- Karten installiert, Vergleich täglich: NFK-Werte, geplante Starts, ET₀
+- Migrations-Service nutzt vorhandene `input_number.{zone}_bucket`-Werte als NFK-Startwerte
+
+### Phase 3: Soft-Cutover (Woche 7)
+- Eine Zone (z.B. Tropfkreis 2) aus Node-RED entfernt, übernimmt irrigation_et0
+- 1 Woche scharfes Monitoring dieser Zone
+- Bei Erfolg: weitere Zonen migriert
+- Alte Node-RED-Flows deaktivieren (nicht löschen) — schnelles Rollback möglich
+
+### Phase 4: Vollbetrieb (Woche 8+)
+- Alle Zonen über irrigation_et0
+- Dry-Run = OFF
+- Alte Helper-Entities bleiben 1 Saison parallel (Read-only-Vergleich), dann gelöscht
+
+### Phase 5: HACS Custom Repository (sofort nach Phase 1)
+- GitHub Repo öffentlich
+- HACS → Custom Repository → URL eintragen
+- Versions-Updates fließen via HACS-Update (kein HA-Neustart, siehe §2.9)
+
+### Phase 6: HACS Default + Brands (nach 1 Saison Stabilität)
+- PR an `hacs/default`
+- PR an `home-assistant/brands` mit Logo
+- Wartung: Issues, PRs, Roadmap
+
+---
+
+## 20. Roadmap (post-v1)
+
+### v0.1 MVP-Scope (vollständig)
+- Alle 4 Modi: Aus / Semi / Voll / Ansaat
+- Cycle & Soak pro Zone
+- Frostschutz (binary_sensor + Auto-Stop)
+- Trafo-Sequenz inkl. Failsafe und Mismatch-Detection
+- FIFO-Queue
+- Recovery offener Ventile beim Startup (§9a.1)
+- Catch-up bei verpassten Tagen (§9.5)
+- Sensor-Fallback-Kette PM → Hargreaves → Last → 0 (§9a.2)
+- Alle 4 Karten (Übersicht, Globale Settings, Berechnungsparameter, Verlauf)
+- Services aus §15
+- Events aus §16
+- Dry-Run-Switch (§17.1)
+- Notifications für kritische Ereignisse (§17.3)
+- Diagnostics + Repairs (§2.7, §2.8)
+- HACS Custom Repository
+- Pytest-Suite ≥85% Coverage
+- i18n DE/EN
+- Hot-Reload ohne HA-Neustart (§2.9)
+- Migrations-Service `import_node_red_state`
+
+### Roadmap nach v0.1
+
+| Version | Feature |
+|---|---|
+| v0.2 | Wettervorhersage-Integration für Skip-Logik (z.B. "morgen >5mm Regen → heute nicht bewässern") |
+| v0.3 | Multi-Anlagen-Support (mehrere Config Entries pro HA) |
+| v0.4 | Statistik-Dashboard mit Saisonvergleich, m³-Verbrauch |
+| v0.5 | Smart-Scheduling: ET₀-Vorhersage 7d → optimaler Bewässerungszeitpunkt minimiert Verdunstungsverluste |
+| v1.0 | HACS Default, Brands-Logo, Production-grade, 1+ Saison Stabilität |
