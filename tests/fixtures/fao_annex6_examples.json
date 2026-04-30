@@ -1,0 +1,17 @@
+{
+  "chapter4_example": {
+    "description": "FAO-56 Annex 6 / Chapter 4 worked example",
+    "inputs": {
+      "t_min": 19.5,
+      "t_max": 25.1,
+      "rh_min": 63.0,
+      "rh_max": 84.0,
+      "u2": 2.2,
+      "altitude": 100,
+      "latitude_deg": 13.73,
+      "solar_rad_mj": 18.0,
+      "day_of_year": 135
+    },
+    "expected_et0_mm": 3.9
+  }
+}

@@ -1,0 +1,9 @@
+{"type":"server-started","port":50064,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:50064","screen_dir":"/Users/michael/irrigation-ha/.superpowers/brainstorm/77623-1777394916"}
+{"type":"screen-added","file":"/Users/michael/irrigation-ha/.superpowers/brainstorm/77623-1777394916/overview-mockup.html"}
+{"type":"screen-added","file":"/Users/michael/irrigation-ha/.superpowers/brainstorm/77623-1777394916/overview-v2.html"}
+{"type":"screen-added","file":"/Users/michael/irrigation-ha/.superpowers/brainstorm/77623-1777394916/overview-v3.html"}
+{"type":"screen-added","file":"/Users/michael/irrigation-ha/.superpowers/brainstorm/77623-1777394916/waiting.html"}
+{"type":"screen-added","file":"/Users/michael/irrigation-ha/.superpowers/brainstorm/77623-1777394916/settings-cards.html"}
+{"type":"screen-added","file":"/Users/michael/irrigation-ha/.superpowers/brainstorm/77623-1777394916/history-card.html"}
+{"type":"screen-added","file":"/Users/michael/irrigation-ha/.superpowers/brainstorm/77623-1777394916/waiting-2.html"}
+{"type":"server-stopped","reason":"idle timeout"}

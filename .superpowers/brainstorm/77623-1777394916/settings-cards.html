@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings Cards</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111827; color: #e5e7eb;
+    padding: 16px; min-height: 100vh;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .ha-card {
+    background: #1f2937; border-radius: 12px; overflow: hidden;
+    max-width: 700px; width: 100%;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+
+  .card-header {
+    background: #1a2942; padding: 12px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #374151;
+  }
+  .card-header h2 { font-size: 14px; font-weight: 600; color: #93c5fd; }
+  .card-header .subtitle { font-size: 11px; color: #6b7280; margin-top: 2px; }
+
+  .card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* Section */
+  .section-title {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    color: #6b7280; letter-spacing: 0.8px; margin-bottom: 8px;
+  }
+
+  /* Form grid */
+  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fgrid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .fgrid-1 { display: grid; grid-template-columns: 1fr; gap: 10px; }
+
+  .fbox { display: flex; flex-direction: column; gap: 4px; }
+  .fbox label { font-size: 11px; color: #9ca3af; }
+  .fbox input, .fbox select {
+    background: #111827; border: 1px solid #374151; border-radius: 6px;
+    color: #e5e7eb; font-size: 13px; padding: 7px 10px; width: 100%;
+  }
+  .fbox input:focus, .fbox select:focus {
+    outline: none; border-color: #3b82f6;
+  }
+  .fbox .hint { font-size: 10px; color: #4b5563; }
+
+  /* Entity picker row */
+  .entity-row {
+    display: grid; grid-template-columns: 140px 1fr 80px;
+    align-items: center; gap: 10px;
+    padding: 8px 10px; background: #111827;
+    border-radius: 8px; border: 1px solid #27303f;
+  }
+  .entity-row .param-name { font-size: 12px; color: #d1d5db; }
+  .entity-row .param-unit { font-size: 10px; color: #6b7280; margin-top: 2px; }
+  .entity-row select {
+    background: #1f2937; border: 1px solid #374151; border-radius: 6px;
+    color: #e5e7eb; font-size: 12px; padding: 6px 8px; width: 100%;
+  }
+  .entity-row .cur-val {
+    font-size: 12px; color: #6b7280; text-align: right; white-space: nowrap;
+  }
+  .entity-row .cur-val span { color: #93c5fd; font-weight: 600; }
+
+  /* Zone tabs */
+  .zone-tabs { display: flex; gap: 0; border-bottom: 1px solid #374151; margin: -16px -18px 16px; padding: 0 18px; overflow-x: auto; }
+  .ztab {
+    padding: 9px 14px; font-size: 12px; color: #6b7280;
+    cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+  }
+  .ztab.active { color: #93c5fd; border-bottom-color: #3b82f6; }
+  .ztab:hover  { color: #d1d5db; }
+
+  /* Method pills */
+  .method-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mpill {
+    padding: 6px 14px; border-radius: 8px; font-size: 12px;
+    cursor: pointer; border: 1px solid #374151; color: #9ca3af;
+    transition: all 0.15s;
+  }
+  .mpill.active { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+  .mpill:hover  { border-color: #4b5563; color: #d1d5db; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid #374151; margin: 0; }
+
+  /* Save button */
+  .btn-save {
+    background: #1d4ed8; color: #fff; border: none;
+    border-radius: 8px; padding: 10px 20px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    align-self: flex-end;
+  }
+  .btn-save:hover { background: #2563eb; }
+
+  /* Status badge */
+  .status-ok  { color: #4ade80; font-size: 11px; }
+  .status-err { color: #f87171; font-size: 11px; }
+  .status-unk { color: #6b7280; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     CARD 2: Globale Einstellungen
+══════════════════════════════════════════ -->
+<div class="ha-card">
+  <div class="card-header">
+    <div>
+      <h2>⚙️ Bewässerung — Globale Einstellungen</h2>
+      <div class="subtitle">Standort, Wetter-Sensoren, Hardware</div>
+    </div>
+  </div>
+  <div class="card-body">
+
+    <!-- Standort -->
+    <div>
+      <div class="section-title">Standort</div>
+      <div class="fgrid-3">
+        <div class="fbox">
+          <label>Breitengrad (°N)</label>
+          <input type="number" step="0.0001" value="50.3673">
+        </div>
+        <div class="fbox">
+          <label>Längengrad (°E)</label>
+          <input type="number" step="0.0001" value="8.7394">
+        </div>
+        <div class="fbox">
+          <label>Höhe (m ü. NN)</label>
+          <input type="number" value="163">
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Wetter-Sensoren -->
+    <div>
+      <div class="section-title">Wetter-Sensoren &amp; Eingangswerte</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+
+        <div class="entity-row">
+          <div><div class="param-name">Temperatur Min</div><div class="param-unit">°C · täglich</div></div>
+          <select><option>sensor.dwd_temperature_min</option><option>sensor.aussenstation_temp_min</option></select>
+          <div class="cur-val">heute <span>8.2°</span></div>
+        </div>
+
+        <div class="entity-row">
+          <div><div class="param-name">Temperatur Max</div><div class="param-unit">°C · täglich</div></div>
+          <select><option>sensor.dwd_temperature_max</option><option>sensor.aussenstation_temp_max</option></select>
+          <div class="cur-val">heute <span>22.4°</span></div>
+        </div>
+
+        <div class="entity-row">
+          <div><div class="param-name">Luftf. Min</div><div class="param-unit">% · täglich</div></div>
+          <select><option>sensor.aussenstation_humidity_min</option><option>sensor.dwd_humidity_min</option></select>
+          <div class="cur-val">heute <span>38%</span></div>
+        </div>
+
+        <div class="entity-row">
+          <div><div class="param-name">Luftf. Max</div><div class="param-unit">% · täglich</div></div>
+          <select><option>sensor.aussenstation_humidity_max</option></select>
+          <div class="cur-val">heute <span>82%</span></div>
+        </div>
+
+        <div class="entity-row">
+          <div><div class="param-name">Solarstrahlung</div><div class="param-unit">W/m² · Tagesmittel</div></div>
+          <select><option>sensor.aussenstation_solar_radiation</option><option>sensor.dwd_solar</option></select>
+          <div class="cur-val">heute <span>214 W</span></div>
+        </div>
+
+        <div class="entity-row">
+          <div><div class="param-name">Windgeschw.</div><div class="param-unit">m/s · 2m Höhe</div></div>
+          <select><option>sensor.aussenstation_windspeed</option><option>sensor.dwd_wind_speed</option></select>
+          <div class="cur-val">heute <span>2.1 m/s</span></div>
+        </div>
+
+        <div class="entity-row">
+          <div><div class="param-name">Niederschlag</div><div class="param-unit">mm · täglich</div></div>
+          <select><option>sensor.aussenstation_rain_day</option><option>sensor.dwd_precipitation</option></select>
+          <div class="cur-val">heute <span>0.0 mm</span></div>
+        </div>
+
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Hardware -->
+    <div>
+      <div class="section-title">Hardware</div>
+      <div class="fgrid">
+        <div class="fbox">
+          <label>Trafo-Aktor (24V)</label>
+          <select>
+            <option>switch.drs8_schaltaktor_bewasserung_trafo_ch14</option>
+          </select>
+          <div class="hint">Wird vor jedem Ventil eingeschaltet</div>
+        </div>
+        <div class="fbox">
+          <label>Frostschutz ab (°C)</label>
+          <input type="number" value="4">
+          <div class="hint">Unter diesem Wert: keine Bewässerung</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-save">Speichern</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     CARD 3: Berechnungseinstellungen je Zone
+══════════════════════════════════════════ -->
+<div class="ha-card">
+  <div class="card-header">
+    <div>
+      <h2>🧮 Bewässerung — Berechnungsparameter</h2>
+      <div class="subtitle">ET-Methode, Bodenwasser, Koeffizienten je Zone</div>
+    </div>
+  </div>
+  <div class="card-body">
+
+    <!-- ET-Methode global -->
+    <div>
+      <div class="section-title">ET₀-Berechnungsmethode (global)</div>
+      <div class="method-pills">
+        <div class="mpill active">Penman-Monteith FAO-56</div>
+        <div class="mpill">Haude</div>
+        <div class="mpill">Hargreaves</div>
+      </div>
+      <div style="font-size:11px; color:#4b5563; margin-top:8px;">
+        Penman-Monteith benötigt: Temp min/max, Luftf. min/max, Solarstrahlung, Wind
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Zonen-Tabs -->
+    <div>
+      <div class="section-title">Parameter je Zone</div>
+      <div class="zone-tabs">
+        <div class="ztab active" onclick="showZone('z1',this)">Rasenkreis 1</div>
+        <div class="ztab" onclick="showZone('z2',this)">Rasenkreis 2</div>
+        <div class="ztab" onclick="showZone('z3',this)">Tropfkreis 1</div>
+        <div class="ztab" onclick="showZone('z4',this)">Tropfkreis 2</div>
+        <div class="ztab" onclick="showZone('z5',this)">Dach</div>
+      </div>
+
+      <!-- Zone 1 params -->
+      <div id="zone-z1">
+        <div class="fgrid" style="margin-bottom:10px">
+          <div class="fbox">
+            <label>Ventil-Entity (HomeMatic)</label>
+            <select><option>switch.drs8_schaltaktor_bewasserung_mv4_ch26</option></select>
+          </div>
+          <div class="fbox">
+            <label>Zonentyp</label>
+            <select><option>Rasen</option><option>Tropf</option><option>Dach/Sonstiges</option></select>
+          </div>
+        </div>
+        <div class="fgrid-3" style="margin-bottom:10px">
+          <div class="fbox">
+            <label>Kc (Kulturkoeffizient)</label>
+            <input type="number" step="0.01" value="0.80">
+            <div class="hint">Rasen ≈ 0.8, Gemüse ≈ 1.0</div>
+          </div>
+          <div class="fbox">
+            <label>NFK Max (mm)</label>
+            <input type="number" value="15">
+            <div class="hint">Boden × Wurzeltiefe</div>
+          </div>
+          <div class="fbox">
+            <label>Bodentyp</label>
+            <select>
+              <option>Sandiger Lehm (12 mm/dm)</option>
+              <option selected>Lehm (15 mm/dm)</option>
+              <option>Toniger Lehm (18 mm/dm)</option>
+              <option>Manuell</option>
+            </select>
+          </div>
+        </div>
+        <div class="fgrid-3" style="margin-bottom:10px">
+          <div class="fbox">
+            <label>Wurzeltiefe (dm)</label>
+            <input type="number" value="10">
+          </div>
+          <div class="fbox">
+            <label>Schwellwert (%)</label>
+            <input type="number" value="50">
+            <div class="hint">Auslöser Voll-Automatik</div>
+          </div>
+          <div class="fbox">
+            <label>Zielwert (%)</label>
+            <input type="number" value="80">
+            <div class="hint">Abbruch Voll-Automatik</div>
+          </div>
+        </div>
+        <div class="fgrid-3">
+          <div class="fbox">
+            <label>Durchfluss (mm/min)</label>
+            <input type="number" step="0.1" value="0.8">
+            <div class="hint">Bestimmt Bewässerungsdauer</div>
+          </div>
+          <div class="fbox">
+            <label>NFK Startwert (%)</label>
+            <input type="number" value="85">
+            <div class="hint">Zum Jahresbeginn</div>
+          </div>
+          <div class="fbox">
+            <label>Saisonaler Faktor</label>
+            <select>
+              <option selected>Automatisch (Ka)</option>
+              <option>Haude-Monatsfaktoren</option>
+              <option>Keiner</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Zone 2-5 hidden -->
+      <div id="zone-z2" style="display:none">
+        <div style="color:#6b7280; font-size:12px; padding:12px 0">
+          Rasenkreis 2 — gleiche Felder wie Rasenkreis 1
+        </div>
+      </div>
+      <div id="zone-z3" style="display:none">
+        <div style="color:#6b7280; font-size:12px; padding:12px 0">
+          Tropfkreis 1 — gleiche Felder, Zonentyp = Tropf
+        </div>
+      </div>
+      <div id="zone-z4" style="display:none">
+        <div style="color:#6b7280; font-size:12px; padding:12px 0">
+          Tropfkreis 2 — gleiche Felder, Zonentyp = Tropf
+        </div>
+      </div>
+      <div id="zone-z5" style="display:none">
+        <div style="color:#6b7280; font-size:12px; padding:12px 0">
+          Dach — gleiche Felder, Zonentyp = Dach/Sonstiges
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-save">Speichern</button>
+  </div>
+</div>
+
+<script>
+function showZone(id, el) {
+  ['z1','z2','z3','z4','z5'].forEach(z => {
+    const d = document.getElementById('zone-' + z);
+    if (d) d.style.display = z === id ? 'block' : 'none';
+  });
+  el.closest('.zone-tabs').querySelectorAll('.ztab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

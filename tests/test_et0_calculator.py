@@ -1,11 +1,9 @@
 """Tests for the et0_calculator module."""
-import pytest
 from custom_components.irrigation_et0.et0_calculator import (
     calc_et0_fao56,
     calc_et0_hargreaves,
     calc_et0_haude,
     calc_ka,
-    Et0Result,
 )
 
 
@@ -16,9 +14,10 @@ def test_calc_et0_fao56_returns_positive_for_summer_input():
 
 
 def test_calc_et0_fao56_clamps_unrealistic_inputs():
-    # solar=2000 W/m² (above limit of 1500) → should still return valid float
-    et0 = calc_et0_fao56(12.0, 28.0, 40.0, 80.0, 2000.0, 2.0, 50.0, 163, 180)
-    assert isinstance(et0, float) and et0 > 0
+    # solar=2000 W/m² (above limit of 1500) → clamped, equals result with solar=1500
+    et0_clamped = calc_et0_fao56(12.0, 28.0, 40.0, 80.0, 2000.0, 2.0, 50.0, 163, 180)
+    et0_at_limit = calc_et0_fao56(12.0, 28.0, 40.0, 80.0, 1500.0, 2.0, 50.0, 163, 180)
+    assert et0_clamped == et0_at_limit
 
 
 def test_calc_et0_fao56_with_swapped_temps_normalizes():
@@ -30,7 +29,7 @@ def test_calc_et0_fao56_with_swapped_temps_normalizes():
 def test_calc_et0_hargreaves_known_value():
     # lat=50°N, DOY=180: Ra ≈ 41 MJ/m²/d → Hargreaves gives ~14.5 mm/day
     et0 = calc_et0_hargreaves(12.0, 28.0, 50.0, 180)
-    assert 2.0 < et0 < 20.0
+    assert 12.0 < et0 < 17.0
 
 
 def test_calc_et0_haude_monthly_factor():

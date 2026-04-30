@@ -70,6 +70,10 @@ def calc_et0_fao56(
     if t_min > t_max:
         t_min, t_max = t_max, t_min
 
+    # Normalise humidity ordering
+    if rh_min > rh_max:
+        rh_min, rh_max = rh_max, rh_min
+
     # Convert solar radiation to MJ/m²/day
     sol_rad_mj = solar_w_m2 * W_M2_TO_MJ_M2_D
 
@@ -105,7 +109,7 @@ def calc_et0_fao56(
     rns = net_in_sol_rad(sol_rad_mj)
 
     # Net longwave radiation — guard against division by zero when rso=0
-    if rso > 0:
+    if rso > 0:  # noqa: SIM108
         rnl = net_out_lw_rad(t_min, t_max, sol_rad_mj, rso, avp)
     else:
         rnl = 0.0
@@ -115,7 +119,7 @@ def calc_et0_fao56(
 
     # FAO-56 PM
     et0 = fao56_penman_monteith(rn, t_mean, wind_m_s, svp, avp, d_svp, psy)
-    return float(et0)
+    return float(max(0.0, et0))
 
 
 def calc_et0_hargreaves(
@@ -156,6 +160,8 @@ def calc_et0_haude(
     Jul 0.38, Aug 0.38, Sep 0.32, Oct 0.27, Nov 0.22, Dec 0.22
     Formula: ET₀ = fH × E₀; E₀ = 0.6107 × 10^(7.45×T14/(235+T14)) × (1 - rh14/100)
     """
+    if month not in _HAUDE_MONTHLY_FACTORS:
+        raise ValueError(f"month must be 1–12, got {month!r}")
     t14 = _clamp(t14, "temp")
     rh14 = _clamp(rh14, "humidity")
 
@@ -176,7 +182,7 @@ def calc_ka(t_max: float) -> float:
 
 @dataclass
 class Et0Result:
-    """Result of calc_et0_with_fallback."""
+    """Structured ET₀ result with value, method, and fallback reason."""
 
     et0_mm: float
     method_used: str          # "fao56", "hargreaves", "haude", "last_known", "zero"

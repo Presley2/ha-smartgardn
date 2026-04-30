@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bewässerung – Mockup v3</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111827; color: #e5e7eb;
+    padding: 16px; min-height: 100vh;
+  }
+  .ha-card {
+    background: #1f2937; border-radius: 12px; overflow: hidden;
+    max-width: 700px; margin: 0 auto;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .card-header {
+    background: #1a2942; padding: 14px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #374151;
+  }
+  .card-header h2 { font-size: 15px; font-weight: 600; color: #93c5fd; }
+  .header-stats { display: flex; gap: 16px; font-size: 12px; color: #9ca3af; }
+  .header-stats span { display: flex; align-items: center; gap: 4px; }
+  .header-stats .val { color: #e5e7eb; font-weight: 600; }
+
+  .zone-list { padding: 4px 0; }
+  .zone-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 110px 44px;
+    align-items: center;
+    gap: 12px; padding: 11px 18px;
+    border-bottom: 1px solid #27303f;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .zone-row:last-child { border-bottom: none; }
+  .zone-row:hover { background: #263348; }
+
+  .zone-meta { display: flex; flex-direction: column; gap: 5px; }
+  .zone-name { font-size: 13px; font-weight: 600; color: #e5e7eb; }
+
+  .mode-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 600; width: fit-content;
+  }
+  .mode-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .mode-badge.aus    { background:#1f2937; border:1px solid #4b5563; color:#6b7280; }
+  .mode-badge.semi   { background:#1e3a5f; border:1px solid #3b82f6; color:#93c5fd; }
+  .mode-badge.voll   { background:#14532d; border:1px solid #22c55e; color:#4ade80; }
+  .mode-badge.ansaat { background:#431407; border:1px solid #f97316; color:#fb923c; }
+  .mode-badge.aus .dot    { background:#4b5563; }
+  .mode-badge.semi .dot   { background:#3b82f6; }
+  .mode-badge.voll .dot   { background:#22c55e; }
+  .mode-badge.ansaat .dot { background:#f97316; animation:pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── Bucket with markers ── */
+  .bucket-wrap { display: flex; flex-direction: column; gap: 4px; }
+
+  .bucket-bar {
+    position: relative;
+    height: 10px;
+    background: #374151;
+    border-radius: 5px;
+    overflow: visible; /* markers can poke out top */
+  }
+  .bucket-fill {
+    height: 100%;
+    border-radius: 5px;
+    position: relative;
+    z-index: 1;
+  }
+  .fill-good    { background: linear-gradient(90deg,#22c55e,#16a34a); }
+  .fill-ok      { background: linear-gradient(90deg,#eab308,#ca8a04); }
+  .fill-low     { background: linear-gradient(90deg,#f97316,#ea580c); }
+  .fill-critical{ background: linear-gradient(90deg,#ef4444,#dc2626); }
+
+  /* threshold marker (Schwellwert) */
+  .marker-thresh {
+    position: absolute;
+    top: -3px; bottom: -3px;
+    width: 2px;
+    background: #f97316;
+    border-radius: 1px;
+    z-index: 3;
+  }
+  .marker-thresh::after {
+    content: 'S';
+    position: absolute;
+    top: -14px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px; color: #f97316; font-weight: 700;
+  }
+  /* target marker (Zielwert) */
+  .marker-target {
+    position: absolute;
+    top: -3px; bottom: -3px;
+    width: 2px;
+    background: #22c55e;
+    border-radius: 1px;
+    z-index: 3;
+  }
+  .marker-target::after {
+    content: 'Z';
+    position: absolute;
+    top: -14px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px; color: #22c55e; font-weight: 700;
+  }
+
+  .bucket-labels {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: #6b7280; padding-top: 4px;
+  }
+  .bucket-labels .nfk-val { color: #d1d5db; font-weight: 600; }
+  .bucket-labels .thresh-hint { color: #f97316; font-size: 9px; }
+
+  /* Next run */
+  .next-run { text-align: right; font-size: 11px; }
+  .next-run .time   { color: #93c5fd; font-weight: 600; font-size: 13px; }
+  .next-run .day    { color: #6b7280; margin-top: 2px; }
+  .next-run .running{ color: #4ade80; font-weight: 600; font-size: 12px; }
+  .next-run .timer  { color: #86efac; font-size: 11px; margin-top: 2px; }
+  .next-run .off    { color: #4b5563; font-size: 11px; }
+
+  .btn-start {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; transition: transform 0.1s; flex-shrink: 0;
+  }
+  .btn-start:active { transform: scale(0.9); }
+  .btn-start.idle   { background:#166534; color:#4ade80; }
+  .btn-start.active { background:#7f1d1d; color:#f87171; }
+  .btn-start.off    { background:#374151; color:#4b5563; cursor:default; }
+
+  /* Detail panel */
+  .zone-detail { display:none; background:#161f2e; border-bottom:1px solid #27303f; }
+  .zone-detail.open { display:block; }
+  .detail-tabs { display:flex; border-bottom:1px solid #27303f; padding:0 18px; }
+  .detail-tab {
+    padding:10px 14px; font-size:12px; color:#6b7280;
+    cursor:pointer; border-bottom:2px solid transparent;
+  }
+  .detail-tab.active { color:#93c5fd; border-bottom-color:#3b82f6; }
+  .detail-tab:hover  { color:#d1d5db; }
+  .detail-body { padding:16px 18px; }
+
+  .status-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .stat-box { background:#1f2937; border-radius:8px; padding:10px 14px; }
+  .stat-box .slabel { font-size:10px; color:#6b7280; text-transform:uppercase; margin-bottom:4px; }
+  .stat-box .svalue { font-size:20px; font-weight:700; color:#e5e7eb; }
+  .stat-box .sunit  { font-size:11px; color:#6b7280; margin-left:2px; }
+
+  .manual-row {
+    display:flex; align-items:center; gap:10px;
+    background:#1f2937; border-radius:8px; padding:12px 14px;
+  }
+  .manual-row label { font-size:12px; color:#9ca3af; white-space:nowrap; }
+  .dur-slider { flex:1; accent-color:#3b82f6; }
+  .dur-val { font-size:13px; font-weight:700; color:#93c5fd; min-width:44px; text-align:right; }
+  .btn-run {
+    background:#166534; color:#4ade80; border:none; border-radius:20px;
+    padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+
+  .mode-picker { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .mpill { padding:5px 12px; border-radius:14px; font-size:11px; cursor:pointer; border:1px solid #374151; color:#9ca3af; }
+  .mpill.active.voll   { background:#14532d; border-color:#22c55e; color:#4ade80; }
+  .mpill.active.semi   { background:#1e3a5f; border-color:#3b82f6; color:#93c5fd; }
+  .mpill.active.ansaat { background:#431407; border-color:#f97316; color:#fb923c; }
+
+  .days-row { display:flex; gap:6px; margin-bottom:14px; }
+  .dpill { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; cursor:pointer; }
+  .dpill.on  { background:#1d4ed8; color:#bfdbfe; }
+  .dpill.off { background:#374151; color:#6b7280; }
+
+  .pgrid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .pbox { background:#1f2937; border-radius:8px; padding:10px; }
+  .pbox .plabel { font-size:10px; color:#6b7280; margin-bottom:5px; }
+  .pbox input, .pbox select {
+    background:#111827; border:1px solid #374151; border-radius:6px;
+    color:#e5e7eb; font-size:13px; padding:6px 8px; width:100%;
+  }
+
+  /* Legend for markers */
+  .marker-legend {
+    display:flex; gap:12px; font-size:9px; color:#6b7280; margin-top:2px;
+  }
+  .marker-legend span { display:flex; align-items:center; gap:3px; }
+  .ml-s { color:#f97316; font-weight:700; }
+  .ml-z { color:#22c55e; font-weight:700; }
+
+  .card-footer {
+    background:#161f2e; border-top:1px solid #27303f;
+    padding:9px 18px; display:flex; justify-content:space-between;
+    font-size:11px; color:#4b5563;
+  }
+</style>
+</head>
+<body>
+<div class="ha-card">
+
+  <div class="card-header">
+    <h2>💧 Bewässerung</h2>
+    <div class="header-stats">
+      <span>ET₀ <span class="val">2.1 mm</span></span>
+      <span>🌧 <span class="val">0 mm</span></span>
+      <span>🌡 <span class="val">22°C</span></span>
+    </div>
+  </div>
+
+  <div class="zone-list">
+
+    <!-- Zone 1: Rasenkreis 1 — Voll Auto, gut (65%), S=50%, Z=80% -->
+    <div class="zone-row" onclick="toggleDetail('z1')">
+      <div class="zone-meta">
+        <div class="zone-name">Rasenkreis 1</div>
+        <div class="mode-badge voll"><div class="dot"></div>Voll Automatik</div>
+      </div>
+      <div class="bucket-wrap">
+        <div style="padding-top:14px"><!-- space for marker labels -->
+          <div class="bucket-bar">
+            <div class="bucket-fill fill-good" style="width:65%"></div>
+            <!-- Schwellwert bei 50% -->
+            <div class="marker-thresh" style="left:50%"></div>
+            <!-- Zielwert bei 80% -->
+            <div class="marker-target" style="left:80%"></div>
+          </div>
+        </div>
+        <div class="bucket-labels">
+          <span>NFK 9.8 / 15 mm</span>
+          <span class="thresh-hint">▲ S:50% Z:80%</span>
+        </div>
+      </div>
+      <div class="next-run">
+        <div class="time">Di 07:05</div>
+        <div class="day">morgen</div>
+      </div>
+      <button class="btn-start idle" onclick="event.stopPropagation()">▶</button>
+    </div>
+    <div class="zone-detail" id="detail-z1">
+      <div class="detail-tabs">
+        <div class="detail-tab active" onclick="switchTab('z1','status',this)">Status</div>
+        <div class="detail-tab" onclick="switchTab('z1','schedule',this)">Zeitplan</div>
+        <div class="detail-tab" onclick="switchTab('z1','params',this)">Parameter</div>
+      </div>
+      <div class="detail-body" id="body-z1-status">
+        <div class="status-grid">
+          <div class="stat-box"><div class="slabel">NFK aktuell</div><div class="svalue">9.8<span class="sunit">mm</span></div></div>
+          <div class="stat-box"><div class="slabel">ETc heute (Kc 0.8)</div><div class="svalue">−1.7<span class="sunit">mm</span></div></div>
+          <div class="stat-box"><div class="slabel">Regen heute</div><div class="svalue">0.0<span class="sunit">mm</span></div></div>
+          <div class="stat-box"><div class="slabel">Nächste Beregnung</div><div class="svalue" style="font-size:15px">Di 07:05</div></div>
+        </div>
+        <div class="manual-row">
+          <label>Manuell</label>
+          <input type="range" class="dur-slider" min="1" max="60" value="10" oninput="document.getElementById('dv1').textContent=this.value+' min'">
+          <span class="dur-val" id="dv1">10 min</span>
+          <button class="btn-run">▶ Starten</button>
+        </div>
+      </div>
+      <div class="detail-body" id="body-z1-schedule" style="display:none">
+        <div class="mode-picker">
+          <div class="mpill">Aus</div><div class="mpill">Semi Auto</div>
+          <div class="mpill active voll">Voll Auto</div><div class="mpill">Ansaat</div>
+        </div>
+        <div class="days-row">
+          <div class="dpill off">Mo</div><div class="dpill on">Di</div><div class="dpill on">Mi</div>
+          <div class="dpill on">Do</div><div class="dpill on">Fr</div><div class="dpill on">Sa</div><div class="dpill on">So</div>
+        </div>
+        <div class="pgrid">
+          <div class="pbox"><div class="plabel">Startzeit</div><input type="time" value="07:05"></div>
+          <div class="pbox"><div class="plabel">Basisdauer (min)</div><input type="number" value="30"></div>
+          <div class="pbox"><div class="plabel">Intervall (Tage)</div><input type="number" value="2"></div>
+        </div>
+      </div>
+      <div class="detail-body" id="body-z1-params" style="display:none">
+        <div class="pgrid">
+          <div class="pbox"><div class="plabel">Kc</div><input type="number" step="0.1" value="0.8"></div>
+          <div class="pbox"><div class="plabel">NFK Max (mm)</div><input type="number" value="15"></div>
+          <div class="pbox"><div class="plabel">Schwellwert (%)</div><input type="number" value="50"></div>
+          <div class="pbox"><div class="plabel">Zielwert (%)</div><input type="number" value="80"></div>
+          <div class="pbox"><div class="plabel">Durchfluss (mm/min)</div><input type="number" value="0.8"></div>
+          <div class="pbox"><div class="plabel">Bodentyp</div><select><option>Sandiger Lehm</option><option>Lehm</option><option>Ton</option></select></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone 2: Rasenkreis 2 — Voll Auto, niedrig (28%), S=50%, Z=80% — UNTER SCHWELLWERT! -->
+    <div class="zone-row" onclick="toggleDetail('z2')">
+      <div class="zone-meta">
+        <div class="zone-name">Rasenkreis 2</div>
+        <div class="mode-badge voll"><div class="dot"></div>Voll Automatik</div>
+      </div>
+      <div class="bucket-wrap">
+        <div style="padding-top:14px">
+          <div class="bucket-bar">
+            <div class="bucket-fill fill-low" style="width:28%"></div>
+            <div class="marker-thresh" style="left:50%"></div>
+            <div class="marker-target" style="left:80%"></div>
+          </div>
+        </div>
+        <div class="bucket-labels">
+          <span>NFK 4.2 / 15 mm</span>
+          <span style="color:#f97316;font-size:10px;font-weight:600;">⚠ unter Schwellwert</span>
+        </div>
+      </div>
+      <div class="next-run">
+        <div class="time">Mo 08:10</div>
+        <div class="day" style="color:#f97316">heute ⚡</div>
+      </div>
+      <button class="btn-start idle" onclick="event.stopPropagation()">▶</button>
+    </div>
+
+    <!-- Zone 3: Tropfkreis 1 — Ansaat, läuft -->
+    <div class="zone-row" onclick="toggleDetail('z3')">
+      <div class="zone-meta">
+        <div class="zone-name">Tropfkreis 1</div>
+        <div class="mode-badge ansaat"><div class="dot"></div>Ansaat</div>
+      </div>
+      <div class="bucket-wrap">
+        <div style="padding-top:14px">
+          <div class="bucket-bar">
+            <div class="bucket-fill fill-good" style="width:82%"></div>
+            <!-- Ansaat: kein Schwellwert-Marker, nur Füllstand -->
+          </div>
+        </div>
+        <div class="bucket-labels">
+          <span>NFK 8.2 / 10 mm</span>
+          <span style="color:#fb923c;font-size:9px">alle 20 min × 2 min</span>
+        </div>
+      </div>
+      <div class="next-run">
+        <div class="running">● läuft</div>
+        <div class="timer">noch 04:32</div>
+      </div>
+      <button class="btn-start active" onclick="event.stopPropagation()">■</button>
+    </div>
+
+    <!-- Zone 4: Tropfkreis 2 — Semi Auto, ok -->
+    <div class="zone-row" onclick="toggleDetail('z4')">
+      <div class="zone-meta">
+        <div class="zone-name">Tropfkreis 2</div>
+        <div class="mode-badge semi"><div class="dot"></div>Semi Automatik</div>
+      </div>
+      <div class="bucket-wrap">
+        <div style="padding-top:14px">
+          <div class="bucket-bar">
+            <div class="bucket-fill fill-ok" style="width:55%"></div>
+            <!-- Semi: Marker optional, hier ohne -->
+          </div>
+        </div>
+        <div class="bucket-labels">
+          <span>NFK 5.5 / 10 mm</span>
+          <span class="nfk-val" style="color:#6b7280"></span>
+        </div>
+      </div>
+      <div class="next-run">
+        <div class="time">Mo 20:00</div>
+        <div class="day">heute</div>
+      </div>
+      <button class="btn-start idle" onclick="event.stopPropagation()">▶</button>
+    </div>
+
+    <!-- Zone 5: Dach — Aus, kritisch -->
+    <div class="zone-row" onclick="toggleDetail('z5')">
+      <div class="zone-meta">
+        <div class="zone-name">Dach</div>
+        <div class="mode-badge aus"><div class="dot"></div>Aus</div>
+      </div>
+      <div class="bucket-wrap">
+        <div style="padding-top:14px">
+          <div class="bucket-bar">
+            <div class="bucket-fill fill-critical" style="width:12%"></div>
+          </div>
+        </div>
+        <div class="bucket-labels">
+          <span>NFK 1.8 / 15 mm</span>
+          <span></span>
+        </div>
+      </div>
+      <div class="next-run">
+        <div class="off">— deaktiviert</div>
+      </div>
+      <button class="btn-start off" onclick="event.stopPropagation()">▶</button>
+    </div>
+
+  </div>
+
+  <div class="card-footer">
+    <span>🔋 Trafo: aus &nbsp;|&nbsp; <span style="color:#f97316">S</span> = Schwellwert &nbsp; <span style="color:#22c55e">Z</span> = Zielwert</span>
+    <span>ET₀ berechnet: heute 23:59</span>
+  </div>
+
+</div>
+
+<script>
+function toggleDetail(id) {
+  document.querySelectorAll('.zone-detail').forEach(el => {
+    if (el.id !== 'detail-' + id) el.classList.remove('open');
+  });
+  document.getElementById('detail-' + id)?.classList.toggle('open');
+}
+function switchTab(zone, tab, el) {
+  ['status','schedule','params'].forEach(t => {
+    const b = document.getElementById('body-' + zone + '-' + t);
+    if (b) b.style.display = t === tab ? 'block' : 'none';
+  });
+  el.closest('.detail-tabs').querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

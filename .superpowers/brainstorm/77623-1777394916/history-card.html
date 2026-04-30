@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historie Card</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111827; color: #e5e7eb;
+    padding: 16px; min-height: 100vh;
+  }
+  .ha-card {
+    background: #1f2937; border-radius: 12px; overflow: hidden;
+    max-width: 700px; margin: 0 auto;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .card-header {
+    background: #1a2942; padding: 12px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #374151;
+  }
+  .card-header h2 { font-size: 14px; font-weight: 600; color: #93c5fd; }
+
+  /* Zone selector */
+  .zone-selector {
+    display: flex; gap: 0; padding: 0 18px;
+    border-bottom: 1px solid #374151; overflow-x: auto;
+  }
+  .ztab {
+    padding: 9px 14px; font-size: 12px; color: #6b7280;
+    cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+  }
+  .ztab.active { color: #93c5fd; border-bottom-color: #3b82f6; }
+
+  /* Range selector */
+  .range-selector {
+    display: flex; gap: 6px; padding: 12px 18px 0;
+  }
+  .rpill {
+    padding: 4px 12px; border-radius: 12px; font-size: 11px;
+    cursor: pointer; border: 1px solid #374151; color: #6b7280;
+  }
+  .rpill.active { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+
+  /* Summary row */
+  .summary-row {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 8px; padding: 12px 18px;
+  }
+  .sum-box {
+    background: #111827; border-radius: 8px; padding: 8px 10px; text-align: center;
+  }
+  .sum-box .slabel { font-size: 9px; color: #6b7280; text-transform: uppercase; margin-bottom: 3px; }
+  .sum-box .sval   { font-size: 15px; font-weight: 700; color: #e5e7eb; }
+  .sum-box .sunit  { font-size: 10px; color: #6b7280; }
+  .sum-box.et  .sval { color: #f97316; }
+  .sum-box.rain .sval { color: #60a5fa; }
+  .sum-box.irr .sval  { color: #4ade80; }
+  .sum-box.nfk .sval  { color: #a78bfa; }
+
+  /* Chart area */
+  .chart-wrap { padding: 8px 18px 16px; }
+  .chart-title { font-size: 10px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
+
+  svg text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  /* Legend */
+  .legend {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    padding: 0 18px 14px; font-size: 11px; color: #9ca3af;
+  }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .ldot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .lline { width: 16px; height: 2px; flex-shrink: 0; }
+  .lline.dashed { background: repeating-linear-gradient(90deg,currentColor 0,currentColor 4px,transparent 4px,transparent 8px); }
+</style>
+</head>
+<body>
+<div class="ha-card">
+
+  <div class="card-header">
+    <h2>📊 Bewässerung — Verlauf &amp; Bilanz</h2>
+  </div>
+
+  <!-- Zone tabs -->
+  <div class="zone-selector">
+    <div class="ztab active">Rasenkreis 1</div>
+    <div class="ztab">Rasenkreis 2</div>
+    <div class="ztab">Tropfkreis 1</div>
+    <div class="ztab">Tropfkreis 2</div>
+    <div class="ztab">Dach</div>
+  </div>
+
+  <!-- Time range -->
+  <div class="range-selector">
+    <div class="rpill active">7 Tage</div>
+    <div class="rpill">14 Tage</div>
+    <div class="rpill">30 Tage</div>
+    <div class="rpill">Jahr</div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary-row">
+    <div class="sum-box et">
+      <div class="slabel">ETc gesamt</div>
+      <div class="sval">14.7</div>
+      <div class="sunit">mm</div>
+    </div>
+    <div class="sum-box rain">
+      <div class="slabel">Regen gesamt</div>
+      <div class="sval">3.2</div>
+      <div class="sunit">mm</div>
+    </div>
+    <div class="sum-box irr">
+      <div class="slabel">Beregnung</div>
+      <div class="sval">18.4</div>
+      <div class="sunit">mm</div>
+    </div>
+    <div class="sum-box nfk">
+      <div class="slabel">NFK aktuell</div>
+      <div class="sval">9.8</div>
+      <div class="sunit">mm</div>
+    </div>
+    <div class="sum-box">
+      <div class="slabel">ET₀ Ø/Tag</div>
+      <div class="sval">2.1</div>
+      <div class="sunit">mm</div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-wrap">
+    <div class="chart-title">Tagesbilanz &amp; NFK-Verlauf</div>
+    <svg id="chart" width="100%" viewBox="0 0 640 220" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <clipPath id="clip"><rect x="50" y="10" width="574" height="160"/></clipPath>
+      </defs>
+
+      <!-- Grid lines -->
+      <g stroke="#27303f" stroke-width="1">
+        <!-- Horizontal grid at NFK levels -->
+        <line x1="50" y1="10"  x2="624" y2="10"/>
+        <line x1="50" y1="50"  x2="624" y2="50"  stroke-dasharray="3,3"/>
+        <line x1="50" y1="90"  x2="624" y2="90"  stroke-dasharray="3,3"/>
+        <line x1="50" y1="130" x2="624" y2="130" stroke-dasharray="3,3"/>
+        <line x1="50" y1="170" x2="624" y2="170"/>
+      </g>
+
+      <!-- Y-axis labels (NFK mm, right scale 0-15mm → 170 to 10) -->
+      <g fill="#6b7280" font-size="9" text-anchor="end">
+        <text x="44" y="173">0</text>
+        <text x="44" y="133">5</text>
+        <text x="44" y="93">10</text>
+        <text x="44" y="53">15</text>
+        <text x="44" y="13">mm</text>
+      </g>
+
+      <!-- Schwellwert line at 50% = 7.5mm → y = 170 - (7.5/15)*160 = 90 -->
+      <line x1="50" y1="90" x2="624" y2="90" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.7"/>
+      <text x="628" y="93" fill="#f97316" font-size="9">S</text>
+
+      <!-- Zielwert line at 80% = 12mm → y = 170 - (12/15)*160 = 42 -->
+      <line x1="50" y1="42" x2="624" y2="42" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+      <text x="628" y="45" fill="#22c55e" font-size="9">Z</text>
+
+      <!-- 7 day bars + NFK line -->
+      <!-- Day slots: 50 + i*82, bar width 18, spacing 64 -->
+      <!-- Data (day -6 to today):
+           ETc:  2.3, 1.8, 2.5, 2.1, 1.9, 2.2, 1.8  (orange bars down from baseline)
+           Rain: 0,   0,   4.2, 0,   0,   0,   0     (blue bars up from baseline)
+           Irr:  4.8, 0,   0,   0,   4.8, 0,   0     (green bars up)
+           NFK:  6.2, 5.2, 6.9, 5.8, 8.7, 6.9, 5.1  (→ 9.8 today)
+
+           Y formula: 170 - (val/15)*160
+      -->
+
+      <!-- Baseline at y=170 -->
+      <!-- Scale: 1mm = 160/15 = 10.67px -->
+
+      <g clip-path="url(#clip)">
+
+        <!-- Day 1 (Mon, -6d): ETc 2.3, Irr 4.8, Rain 0, NFK start=6.2 -->
+        <!-- ETc bar: downward from 170, height=2.3*10.67=24.5 → orange -->
+        <rect x="58"  y="170" width="22" height="24" fill="#f97316" opacity="0.7" rx="2"/>
+        <!-- Irr bar: upward from 170, height=4.8*10.67=51 → green -->
+        <rect x="82"  y="116" width="22" height="54" fill="#22c55e" opacity="0.7" rx="2"/>
+
+        <!-- Day 2 (Tue, -5d): ETc 1.8, Irr 0, Rain 0 -->
+        <rect x="140" y="170" width="22" height="19" fill="#f97316" opacity="0.7" rx="2"/>
+
+        <!-- Day 3 (Wed, -4d): ETc 2.5, Rain 4.2 -->
+        <rect x="222" y="170" width="22" height="27" fill="#f97316" opacity="0.7" rx="2"/>
+        <rect x="246" y="125" width="22" height="45" fill="#60a5fa" opacity="0.8" rx="2"/>
+
+        <!-- Day 4 (Thu, -3d): ETc 2.1 -->
+        <rect x="304" y="170" width="22" height="22" fill="#f97316" opacity="0.7" rx="2"/>
+
+        <!-- Day 5 (Fri, -2d): ETc 1.9, Irr 4.8 -->
+        <rect x="386" y="170" width="22" height="20" fill="#f97316" opacity="0.7" rx="2"/>
+        <rect x="410" y="119" width="22" height="51" fill="#22c55e" opacity="0.7" rx="2"/>
+
+        <!-- Day 6 (Sat, -1d): ETc 2.2 -->
+        <rect x="468" y="170" width="22" height="23" fill="#f97316" opacity="0.7" rx="2"/>
+
+        <!-- Day 7 (today): ETc 1.8 (partial) -->
+        <rect x="550" y="170" width="22" height="19" fill="#f97316" opacity="0.4" rx="2"/>
+
+        <!-- NFK line: points -->
+        <!-- NFK values mapped: val → y = 170 - val*10.67 -->
+        <!-- Mon: 6.2 → y=104  Tue: 5.2 → y=115  Wed: 6.9 → y=96  Thu: 5.8 → y=108
+             Fri: 8.7 → y=77   Sat: 6.9 → y=96   today: 9.8 → y=65 -->
+        <polyline
+          points="69,104 151,115 233,96 315,108 397,77 479,96 561,65"
+          fill="none" stroke="#a78bfa" stroke-width="2.5" stroke-linejoin="round"/>
+
+        <!-- NFK dots -->
+        <circle cx="69"  cy="104" r="4" fill="#a78bfa"/>
+        <circle cx="151" cy="115" r="4" fill="#a78bfa"/>
+        <circle cx="233" cy="96"  r="4" fill="#a78bfa"/>
+        <circle cx="315" cy="108" r="4" fill="#a78bfa"/>
+        <circle cx="397" cy="77"  r="4" fill="#a78bfa"/>
+        <circle cx="479" cy="96"  r="4" fill="#a78bfa"/>
+        <circle cx="561" cy="65"  r="5" fill="#a78bfa" stroke="#1f2937" stroke-width="2"/>
+
+        <!-- NFK value labels -->
+        <text x="69"  y="98"  fill="#a78bfa" font-size="9" text-anchor="middle">6.2</text>
+        <text x="151" y="109" fill="#a78bfa" font-size="9" text-anchor="middle">5.2</text>
+        <text x="233" y="90"  fill="#a78bfa" font-size="9" text-anchor="middle">6.9</text>
+        <text x="315" y="102" fill="#a78bfa" font-size="9" text-anchor="middle">5.8</text>
+        <text x="397" y="71"  fill="#a78bfa" font-size="9" text-anchor="middle">8.7</text>
+        <text x="479" y="90"  fill="#a78bfa" font-size="9" text-anchor="middle">6.9</text>
+        <text x="561" y="58"  fill="#a78bfa" font-size="9" text-anchor="middle" font-weight="600">9.8</text>
+
+      </g>
+
+      <!-- X-axis day labels -->
+      <g fill="#6b7280" font-size="10" text-anchor="middle">
+        <text x="75"  y="190">Mo</text>
+        <text x="157" y="190">Di</text>
+        <text x="239" y="190">Mi</text>
+        <text x="321" y="190">Do</text>
+        <text x="403" y="190">Fr</text>
+        <text x="485" y="190">Sa</text>
+        <text x="561" y="190" fill="#93c5fd" font-weight="600">So</text>
+      </g>
+      <g fill="#6b7280" font-size="9" text-anchor="middle">
+        <text x="75"  y="202">22.4.</text>
+        <text x="157" y="202">23.4.</text>
+        <text x="239" y="202">24.4.</text>
+        <text x="321" y="202">25.4.</text>
+        <text x="403" y="202">26.4.</text>
+        <text x="485" y="202">27.4.</text>
+        <text x="561" y="202" fill="#93c5fd">28.4.</text>
+      </g>
+
+      <!-- "heute" marker -->
+      <line x1="561" y1="10" x2="561" y2="170" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>
+
+    </svg>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <span><div class="ldot" style="background:#f97316"></div>ETc (Verdunstung)</span>
+    <span><div class="ldot" style="background:#60a5fa"></div>Regen</span>
+    <span><div class="ldot" style="background:#4ade80"></div>Beregnung</span>
+    <span><div class="ldot" style="background:#a78bfa"></div>NFK-Verlauf</span>
+    <span><div class="lline" style="color:#f97316;height:2px;background:repeating-linear-gradient(90deg,#f97316 0,#f97316 4px,transparent 4px,transparent 8px)"></div>Schwellwert (S)</span>
+    <span><div class="lline" style="color:#22c55e;height:2px;background:repeating-linear-gradient(90deg,#22c55e 0,#22c55e 4px,transparent 4px,transparent 8px)"></div>Zielwert (Z)</span>
+  </div>
+
+</div>
+</body>
+</html>
