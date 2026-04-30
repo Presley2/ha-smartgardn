@@ -1,0 +1,38 @@
+start_zone:
+  name: Start zone
+  description: Manually start a zone for N minutes
+  fields:
+    zone:
+      name: Zone
+      description: Zone to start (select.{zone}_modus entity)
+      required: true
+      selector:
+        entity:
+          integration: irrigation_et0
+          domain: select
+    dauer_min:
+      name: Duration
+      description: Run duration in minutes
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 240
+          unit_of_measurement: min
+
+stop_zone:
+  name: Stop zone
+  description: Stop a running zone
+  fields:
+    zone:
+      name: Zone
+      description: Zone to stop (select.{zone}_modus entity)
+      required: true
+      selector:
+        entity:
+          integration: irrigation_et0
+          domain: select
+
+stop_all:
+  name: Stop all
+  description: Stop all zones immediately

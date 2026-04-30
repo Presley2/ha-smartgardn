@@ -666,6 +666,111 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             self._frost_active = False
             self.hass.bus.async_fire("irrigation_et0_frost_release")
 
+    # ===== Phase 6: Services & Events =====
+
+    async def async_start_zone(self, zone_entity_id: str, dauer_min: float) -> None:
+        """Service handler: start a zone manually.
+
+        Args:
+            zone_entity_id: Entity ID of the select.{zone}_modus entity
+            dauer_min: Duration in minutes
+        """
+        zone_id = self._extract_zone_id_from_entity(zone_entity_id)
+        if not zone_id:
+            _LOGGER.error("Could not extract zone_id from entity %s", zone_entity_id)
+            return
+
+        zone_cfg = self.entry.data.get("zones", {}).get(zone_id)
+        if not zone_cfg:
+            _LOGGER.error("Zone %s not configured", zone_id)
+            return
+
+        # Check frost lock
+        if self._frost_active:
+            _LOGGER.warning("Cannot start zone: frost lock is active")
+            return
+
+        # Enqueue the start
+        cs_zyklen = int(self._zone_numbers[zone_id].get("cs_zyklen", 0))
+        cs_pause = self._zone_numbers[zone_id].get("cs_pause", 10.0)
+        await self.async_enqueue_start(zone_id, dauer_min, cs_zyklen, cs_pause)
+        _LOGGER.info("Started zone %s for %.1f minutes", zone_id, dauer_min)
+        self.hass.bus.async_fire(
+            "irrigation_et0_zone_started", {"zone_id": zone_id, "duration_min": dauer_min}
+        )
+
+    async def async_stop_zone(self, zone_entity_id: str) -> None:
+        """Service handler: stop a specific zone.
+
+        Args:
+            zone_entity_id: Entity ID of the select.{zone}_modus entity
+        """
+        zone_id = self._extract_zone_id_from_entity(zone_entity_id)
+        if not zone_id:
+            _LOGGER.error("Could not extract zone_id from entity %s", zone_entity_id)
+            return
+
+        # If this zone is currently running, stop it
+        if self.running and self.running.zone_id == zone_id:
+            zone_cfg = self.entry.data.get("zones", {}).get(zone_id)
+            if zone_cfg:
+                valve_id = zone_cfg["valve_entity"]
+                await self._valve_off_then_trafo_check(valve_id)
+            self.running = None
+            _LOGGER.info("Stopped zone %s", zone_id)
+            self.hass.bus.async_fire(
+                "irrigation_et0_zone_finished", {"zone_id": zone_id}
+            )
+
+        # Also remove from queue if present
+        self.queue = deque(q for q in self.queue if q.zone_id != zone_id)
+
+    async def async_stop_all(self) -> None:
+        """Service handler: stop all zones immediately."""
+        # Stop running zone
+        if self.running:
+            zone_cfg = self.entry.data.get("zones", {}).get(self.running.zone_id)
+            if zone_cfg:
+                valve_id = zone_cfg["valve_entity"]
+                await self._valve_off_then_trafo_check(valve_id)
+            self.running = None
+
+        # Clear queue
+        self.queue.clear()
+        _LOGGER.info("Stopped all zones")
+        self.hass.bus.async_fire("irrigation_et0_stop_all")
+
+    def _extract_zone_id_from_entity(self, entity_id: str) -> str | None:
+        """Extract zone_id from select.{entry_id}_{zone_id}_modus entity ID.
+
+        Args:
+            entity_id: The entity ID to parse
+
+        Returns:
+            The zone_id if successful, None otherwise
+        """
+        if not entity_id.startswith("select."):
+            return None
+
+        # Format: select.{entry_id}_{zone_id}_modus
+        try:
+            # Remove 'select.' prefix
+            base = entity_id[len("select."):]
+            # Split off '_modus' suffix
+            if not base.endswith("_modus"):
+                return None
+            base = base[:-len("_modus")]
+
+            # Reverse-engineer: base = {entry_id}_{zone_id}
+            entry_id = self.entry.entry_id
+            if base.startswith(entry_id + "_"):
+                zone_id = base[len(entry_id) + 1:]
+                return zone_id if zone_id else None
+
+            return None
+        except (AttributeError, IndexError):
+            return None
+
     async def start_zone_manual(self, zone_id: str, dauer_min: float) -> None:
         """Manually start a zone. Full implementation in Phase 4."""
         _LOGGER.info("Manual start zone %s for %.1f min", zone_id, dauer_min)
