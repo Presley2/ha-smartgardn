@@ -1,0 +1,60 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up irrigation system",
+        "data": {
+          "name": "Installation name",
+          "latitude": "Latitude (°N)",
+          "longitude": "Longitude (°E)",
+          "elevation": "Elevation (m)"
+        }
+      },
+      "weather": {
+        "title": "Weather sensors",
+        "data": {
+          "temp_min_entity": "Temperature Min",
+          "temp_max_entity": "Temperature Max",
+          "humidity_min_entity": "Humidity Min (optional)",
+          "humidity_max_entity": "Humidity Max (optional)",
+          "solar_entity": "Solar radiation (optional)",
+          "wind_entity": "Wind speed (optional)",
+          "rain_entity": "Precipitation (optional)"
+        }
+      },
+      "hardware": {
+        "title": "Hardware",
+        "data": {
+          "trafo_entity": "Transformer switch (24V)",
+          "frost_threshold": "Frost protection threshold (°C)"
+        }
+      },
+      "zone": {
+        "title": "Add zone",
+        "data": {
+          "zone_name": "Name",
+          "zone_type": "Zone type",
+          "valve_entity": "Valve entity",
+          "kc": "Crop coefficient (Kc)",
+          "soil_type": "Soil type",
+          "root_depth_dm": "Root depth (dm)",
+          "schwellwert_pct": "Threshold (%)",
+          "zielwert_pct": "Target (%)",
+          "durchfluss_mm_min": "Flow rate (mm/min)",
+          "nfk_start_pct": "Initial NFK (%)"
+        }
+      },
+      "zone_menu": {
+        "title": "Add another zone?",
+        "menu_options": {
+          "add_zone": "Add another zone",
+          "finish": "Finish"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "An installation with this name already exists.",
+      "invalid_latitude": "Latitude must be between -90 and 90."
+    }
+  }
+}

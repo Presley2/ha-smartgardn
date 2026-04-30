@@ -1,0 +1,60 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bewässerungsanlage einrichten",
+        "data": {
+          "name": "Name der Anlage",
+          "latitude": "Breitengrad (°N)",
+          "longitude": "Längengrad (°E)",
+          "elevation": "Höhe (m ü. NN)"
+        }
+      },
+      "weather": {
+        "title": "Wetter-Sensoren",
+        "data": {
+          "temp_min_entity": "Temperatur Min",
+          "temp_max_entity": "Temperatur Max",
+          "humidity_min_entity": "Luftf. Min (optional)",
+          "humidity_max_entity": "Luftf. Max (optional)",
+          "solar_entity": "Solarstrahlung (optional)",
+          "wind_entity": "Windgeschwindigkeit (optional)",
+          "rain_entity": "Niederschlag (optional)"
+        }
+      },
+      "hardware": {
+        "title": "Hardware",
+        "data": {
+          "trafo_entity": "Trafo-Aktor (24V)",
+          "frost_threshold": "Frostschutz-Schwelle (°C)"
+        }
+      },
+      "zone": {
+        "title": "Zone hinzufügen",
+        "data": {
+          "zone_name": "Name",
+          "zone_type": "Zonentyp",
+          "valve_entity": "Ventil-Entity",
+          "kc": "Kulturkoeffizient (Kc)",
+          "soil_type": "Bodentyp",
+          "root_depth_dm": "Wurzeltiefe (dm)",
+          "schwellwert_pct": "Schwellwert (%)",
+          "zielwert_pct": "Zielwert (%)",
+          "durchfluss_mm_min": "Durchfluss (mm/min)",
+          "nfk_start_pct": "NFK-Startwert (%)"
+        }
+      },
+      "zone_menu": {
+        "title": "Weitere Zone?",
+        "menu_options": {
+          "add_zone": "Weitere Zone hinzufügen",
+          "finish": "Fertig"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Eine Anlage mit diesem Namen existiert bereits.",
+      "invalid_latitude": "Breitengrad muss zwischen -90 und 90 liegen."
+    }
+  }
+}
