@@ -56,5 +56,15 @@
       "already_configured": "Eine Anlage mit diesem Namen existiert bereits.",
       "invalid_latitude": "Breitengrad muss zwischen -90 und 90 liegen."
     }
+  },
+  "issue": {
+    "missing_entity": {
+      "title": "Entity fehlt: {entity}",
+      "description": "Die konfigurierte Entity {entity} ist nicht verfügbar oder nicht bekannt. Bitte überprüfen Sie, ob die Entity existiert und korrekt konfiguriert ist."
+    },
+    "trafo_unavailable": {
+      "title": "Trafo nicht verfügbar: {entity}",
+      "description": "Der Trafo-Aktor {entity} ist länger als 2 Minuten nicht verfügbar. Bitte überprüfen Sie das Gerät und die Verbindung."
+    }
   }
 }

@@ -9,5 +9,6 @@
   "integration_type": "service",
   "dependencies": [],
   "requirements": [],
-  "config_flow": true
+  "config_flow": true,
+  "repairs": "custom_components.irrigation_et0.repairs"
 }

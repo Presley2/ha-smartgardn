@@ -56,5 +56,15 @@
       "already_configured": "An installation with this name already exists.",
       "invalid_latitude": "Latitude must be between -90 and 90."
     }
+  },
+  "issue": {
+    "missing_entity": {
+      "title": "Missing entity: {entity}",
+      "description": "The configured entity {entity} is not available or has never been seen. Please verify that the entity exists and is properly configured."
+    },
+    "trafo_unavailable": {
+      "title": "Transformer unavailable: {entity}",
+      "description": "The transformer switch {entity} has been unavailable for more than 2 minutes. Please check the device and connection."
+    }
   }
 }

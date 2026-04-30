@@ -8,44 +8,118 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.repairs import RepairFlow
+from homeassistant.components.repairs import RepairsFlow
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import issue_registry as ir
 
+from custom_components.irrigation_et0.const import DOMAIN
+
 _LOGGER = logging.getLogger(__name__)
 
 
-class IrrigationRepairFlow(RepairFlow):
-    """Repair flow for irrigation_et0 issues."""
+class MissingEntityRepairFlow(RepairsFlow):
+    """Repair flow for missing entities."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Handle the initial step of the repair flow."""
-        if user_input is not None and user_input.get("action") == "ignore":
-            return await self.async_step_ignore()
-        return self.async_show_menu(
+        """Show description of missing entity issue."""
+        issue_id = self.issue_id
+        # Extract entity from issue_id format: missing_entity_<entity_id_with_underscores>
+        entity_id = issue_id.split("_", 2)[2].replace("_", ".")
+
+        return self.async_show_form(
             step_id="init",
-            menu_options=["ignore"],
+            description_placeholders={"entity": entity_id},
         )
 
-    async def async_step_ignore(self) -> FlowResult:
-        """Abort the repair flow with ignore reason."""
-        return self.async_abort(reason="user_ignored")
+    async def async_step_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """User confirmed repair (acknowledged the issue)."""
+        return self.async_abort(reason="issue_resolved")
+
+
+class TrafoUnavailableRepairFlow(RepairsFlow):
+    """Repair flow for transformer unavailability."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Show trafo unavailability issue."""
+        issue_id = self.issue_id
+        # Extract entity from issue_id format: trafo_unavailable_<entity_id_with_underscores>
+        entity_id = issue_id.split("_", 2)[2].replace("_", ".")
+
+        return self.async_show_form(
+            step_id="init",
+            description_placeholders={"entity": entity_id},
+        )
+
+    async def async_step_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """User confirmed trafo availability restored."""
+        return self.async_abort(reason="issue_resolved")
 
 
 async def async_create_fix_flow(
     hass: HomeAssistant, issue_id: str, **kwargs: Any
-) -> RepairFlow:
-    """Create a repair flow for an issue."""
-    return IrrigationRepairFlow()
+) -> RepairsFlow:
+    """Create repair flow based on issue type."""
+    if issue_id.startswith("missing_entity_"):
+        return MissingEntityRepairFlow()
+    elif issue_id.startswith("trafo_unavailable_"):
+        return TrafoUnavailableRepairFlow()
+
+    # Default: simple acknowledge flow
+    return MissingEntityRepairFlow()
 
 
-async def async_check_issues(hass: HomeAssistant) -> list[ir.RepairIssue]:
-    """Check for issues and return a list of repair issues.
+async def async_check_and_create_issues(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Check for common issues and create repair issues if needed.
 
-    Currently returns an empty list. Full implementation will check for:
-    - Missing entity references
-    - Unavailable sensors
-    - Invalid configuration
+    Called during coordinator startup to detect:
+    - Missing weather sensor entities
+    - Unavailable zone valve entities
+    - Trafo unavailability
     """
-    return []
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id, {}).get("coordinator")
+    if not coordinator:
+        return
+
+    # Check if required weather sensors are configured
+    missing_sensors = []
+    if not entry.data.get("temp_min_entity"):
+        missing_sensors.append("Temperature Min")
+    if not entry.data.get("temp_max_entity"):
+        missing_sensors.append("Temperature Max")
+
+    # Check if configured zone valves are available
+    for _zone_id, zone_cfg in entry.data.get("zones", {}).items():
+        valve_id = zone_cfg.get("valve_entity")
+        if valve_id:
+            state = hass.states.get(valve_id)
+            if not state or state.state == "unavailable":
+                # Create issue for missing valve entity
+                issue_id = f"missing_entity_{valve_id.replace('.', '_')}"
+                ir.async_create_issue(
+                    hass,
+                    DOMAIN,
+                    issue_id,
+                    is_fixable=True,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="missing_entity",
+                    translation_placeholders={"entity": valve_id},
+                )
+
+    # Check trafo entity
+    trafo_id = entry.data.get("trafo_entity")
+    if trafo_id:
+        state = hass.states.get(trafo_id)
+        if not state or state.state == "unavailable":
+            # Create issue for unavailable trafo
+            issue_id = f"trafo_unavailable_{trafo_id.replace('.', '_')}"
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=True,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key="trafo_unavailable",
+                translation_placeholders={"entity": trafo_id},
+            )

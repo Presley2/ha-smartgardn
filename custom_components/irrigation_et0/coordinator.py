@@ -110,6 +110,10 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         # Phase 5.1 + 5.5: Startup recovery — check for zones stuck running
         await self._startup_recovery()
 
+        # Phase 7: Check and create repair issues
+        from custom_components.irrigation_et0.repairs import async_check_and_create_issues
+        await async_check_and_create_issues(self.hass, self.entry)
+
         # Register daily 00:05 calculation
         unsub = async_track_time_change(self.hass, self._daily_calc, hour=0, minute=5)
         self._unsubs.append(unsub)
