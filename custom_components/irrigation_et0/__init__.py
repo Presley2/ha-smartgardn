@@ -1,4 +1,5 @@
 """irrigation_et0 — FAO-56 ET₀-based irrigation control."""
+
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry

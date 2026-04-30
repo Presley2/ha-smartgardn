@@ -1,4 +1,5 @@
 """ET₀ calculator module — FAO-56 PM, Hargreaves, Haude, Ka."""
+
 import math
 from dataclasses import dataclass
 
@@ -47,15 +48,15 @@ def _clamp(value: float, key: str) -> float:
 
 
 def calc_et0_fao56(
-    t_min: float,       # °C
-    t_max: float,       # °C
-    rh_min: float,      # %
-    rh_max: float,      # %
+    t_min: float,  # °C
+    t_max: float,  # °C
+    rh_min: float,  # %
+    rh_max: float,  # %
     solar_w_m2: float,  # W/m² (measured; convert internally to MJ/m²/d)
-    wind_m_s: float,    # m/s at 2m height
-    latitude: float,    # decimal degrees (NOT radians)
-    elevation: float,   # metres
-    day_of_year: int,   # 1–365
+    wind_m_s: float,  # m/s at 2m height
+    latitude: float,  # decimal degrees (NOT radians)
+    elevation: float,  # metres
+    day_of_year: int,  # 1–365
 ) -> float:
     """Return daily FAO-56 Penman-Monteith ET₀ in mm/day."""
     # Clamp inputs
@@ -123,9 +124,9 @@ def calc_et0_fao56(
 
 
 def calc_et0_hargreaves(
-    t_min: float,      # °C
-    t_max: float,      # °C
-    latitude: float,   # decimal degrees
+    t_min: float,  # °C
+    t_max: float,  # °C
+    latitude: float,  # decimal degrees
     day_of_year: int,  # 1–365
 ) -> float:
     """Return daily Hargreaves ET₀ in mm/day."""
@@ -149,9 +150,9 @@ def calc_et0_hargreaves(
 
 
 def calc_et0_haude(
-    t14: float,   # temperature at 14:00 (°C)
+    t14: float,  # temperature at 14:00 (°C)
     rh14: float,  # relative humidity at 14:00 (%)
-    month: int,   # 1–12
+    month: int,  # 1–12
 ) -> float:
     """Return daily Haude ET₀ in mm/day.
 
@@ -176,7 +177,7 @@ def calc_ka(t_max: float) -> float:
     Ka = 0.6 + 0.028 × T_max - 0.0002 × T_max²
     Clamped to [0.4, 1.4].
     """
-    ka = 0.6 + 0.028 * t_max - 0.0002 * t_max ** 2
+    ka = 0.6 + 0.028 * t_max - 0.0002 * t_max**2
     return float(max(0.4, min(1.4, ka)))
 
 
@@ -185,5 +186,5 @@ class Et0Result:
     """Structured ET₀ result with value, method, and fallback reason."""
 
     et0_mm: float
-    method_used: str          # "fao56", "hargreaves", "haude", "last_known", "zero"
+    method_used: str  # "fao56", "hargreaves", "haude", "last_known", "zero"
     fallback_reason: str | None  # None if primary method succeeded

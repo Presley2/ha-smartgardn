@@ -45,9 +45,13 @@ def mock_entry(hass: HomeAssistant) -> MockConfigEntry:
 
 @pytest.fixture
 async def coordinator(hass: HomeAssistant, mock_entry: MockConfigEntry) -> IrrigationCoordinator:
+    from unittest.mock import patch
     coord = IrrigationCoordinator(hass, mock_entry)
-    await coord.async_setup()
-    return coord
+    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
+        with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
+            await coord.async_setup()
+    yield coord
+    await coord.async_shutdown()
 
 
 def _zone_data(nfk: float) -> dict:

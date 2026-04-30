@@ -6,6 +6,7 @@ License: BSD 3-Clause (original), vendored under same terms.
 Vendored commit: d5f1809 (2018-07-31)
 Only pure math functions included. No modification to algorithms.
 """
+
 import math
 
 # Solar constant [MJ m-2 min-1]
@@ -178,7 +179,7 @@ def net_out_lw_rad(tmin: float, tmax: float, sol_rad: float, cs_rad: float, avp:
     """
     tmin_k = tmin + 273.16
     tmax_k = tmax + 273.16
-    tmp1 = _SIGMA * ((tmax_k ** 4 + tmin_k ** 4) / 2.0)
+    tmp1 = _SIGMA * ((tmax_k**4 + tmin_k**4) / 2.0)
     tmp2 = 0.34 - (0.14 * math.sqrt(avp))
     tmp3 = (1.35 * (sol_rad / cs_rad)) - 0.35
     return tmp1 * tmp2 * tmp3

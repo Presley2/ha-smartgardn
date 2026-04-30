@@ -1,4 +1,5 @@
 """Config flow for irrigation_et0."""
+
 from __future__ import annotations
 
 import uuid
@@ -142,9 +143,7 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
         self._hardware: dict[str, Any] = {}
         self._zones: dict[str, dict[str, Any]] = {}
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
         """Step 1: Basic installation info."""
         errors: dict[str, str] = {}
 
@@ -178,9 +177,7 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_weather(
-        self, user_input: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def async_step_weather(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
         """Step 2: Weather sensor entities."""
         errors: dict[str, str] = {}
 
@@ -202,9 +199,7 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_hardware(
-        self, user_input: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def async_step_hardware(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
         """Step 3: Hardware configuration."""
         errors: dict[str, str] = {}
 
@@ -221,9 +216,7 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_zone(
-        self, user_input: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def async_step_zone(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
         """Step 4: Add a zone."""
         errors: dict[str, str] = {}
 
@@ -272,15 +265,11 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
             menu_options=["add_zone", "finish"],
         )
 
-    async def async_step_add_zone(
-        self, user_input: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def async_step_add_zone(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
         """Show the zone form again for an additional zone."""
         return await self.async_step_zone()
 
-    async def async_step_finish(
-        self, user_input: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def async_step_finish(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
         """Create the config entry."""
         data = _build_entry_data(
             anlage_name=self._anlage_name,
@@ -303,9 +292,7 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
 class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
     """Options flow for runtime reconfiguration."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
         """Show a minimal options form pre-populated with current data."""
         current = self.config_entry.data
 

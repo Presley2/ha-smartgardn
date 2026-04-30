@@ -31,6 +31,8 @@ async def test_setup_then_unload_clears_data(
             new_callable=AsyncMock,
             return_value=True,
         ),
+        patch("custom_components.irrigation_et0.coordinator.async_track_time_change"),
+        patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"),
     ):
         from custom_components.irrigation_et0 import async_setup_entry, async_unload_entry
 

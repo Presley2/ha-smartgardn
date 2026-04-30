@@ -11,6 +11,7 @@ from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
 
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_coordinator_setup_loads_storage(hass: HomeAssistant) -> None:
+    from unittest.mock import patch
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -22,14 +23,20 @@ async def test_coordinator_setup_loads_storage(hass: HomeAssistant) -> None:
         },
     )
     coordinator = IrrigationCoordinator(hass, entry)
-    await coordinator.async_setup()
-    # After setup, storage data is loaded (defaults when no file exists)
-    assert coordinator._storage_data is not None
-    assert coordinator._storage_data["zones"] == {}
+    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
+        with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
+            await coordinator.async_setup()
+    try:
+        # After setup, storage data is loaded (defaults when no file exists)
+        assert coordinator._storage_data is not None
+        assert coordinator._storage_data["zones"] == {}
+    finally:
+        await coordinator.async_shutdown()
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_coordinator_update_data_returns_dict(hass: HomeAssistant) -> None:
+    from unittest.mock import patch
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -41,11 +48,16 @@ async def test_coordinator_update_data_returns_dict(hass: HomeAssistant) -> None
         },
     )
     coordinator = IrrigationCoordinator(hass, entry)
-    await coordinator.async_setup()
-    data = await coordinator._async_update_data()
-    assert "frost_active" in data
-    assert "trafo_state" in data
-    assert data["frost_active"] is False  # no temp sensor state → not frost
+    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
+        with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
+            await coordinator.async_setup()
+    try:
+        data = await coordinator._async_update_data()
+        assert "frost_active" in data
+        assert "trafo_state" in data
+        assert data["frost_active"] is False  # no temp sensor state → not frost
+    finally:
+        await coordinator.async_shutdown()
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
@@ -98,10 +110,12 @@ async def test_setup_creates_hub_and_zone_devices(hass: HomeAssistant) -> None:
         new_callable=AsyncMock,
         return_value=None,
     ):
-        from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
+                from custom_components.irrigation_et0 import async_setup_entry
 
-        result = await async_setup_entry(hass, entry)
-        assert result is True
+                result = await async_setup_entry(hass, entry)
+                assert result is True
 
     dev_reg = dr.async_get(hass)
     hub = dev_reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)})

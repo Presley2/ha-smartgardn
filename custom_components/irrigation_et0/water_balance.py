@@ -1,4 +1,5 @@
 """Water balance calculations for irrigation control (NFK bilanz)."""
+
 from dataclasses import dataclass
 from datetime import date
 

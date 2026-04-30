@@ -1,4 +1,5 @@
 """GTS calculator module — Grünlandtemperatursumme (cumulative growing-degree sum)."""
+
 from datetime import date
 
 
