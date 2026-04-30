@@ -1,6 +1,8 @@
 """Tests for the water_balance module."""
 from datetime import date
 
+import pytest
+
 from custom_components.irrigation_et0.water_balance import (
     calc_daily_balance,
     calc_etc,
@@ -96,3 +98,12 @@ def test_dauer_for_typical_zone():
         durchfluss_mm_min=0.8,
     )
     assert result == 8.75
+
+
+def test_calc_etc_with_seasonal_factor():
+    # ka < 1 reduces ETc proportionally
+    assert calc_etc(et0=4.0, kc=0.8, ka=0.7) == pytest.approx(2.24)
+
+
+def test_dauer_zero_when_no_flow():
+    assert watering_dauer_min(5.0, 15.0, 80, 0.0) == 0.0
