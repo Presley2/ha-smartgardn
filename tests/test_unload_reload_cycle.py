@@ -13,7 +13,7 @@ from custom_components.irrigation_et0.const import DOMAIN
 @pytest.fixture
 def mock_entry() -> MockConfigEntry:
     """Create a minimal config entry for testing."""
-    return MockConfigEntry(domain=DOMAIN, title="Test Anlage", data={})
+    return MockConfigEntry(domain=DOMAIN, title="Test Anlage", data={"name": "Test", "zones": {}})
 
 
 async def test_setup_then_unload_clears_data(
@@ -34,6 +34,7 @@ async def test_setup_then_unload_clears_data(
     ):
         from custom_components.irrigation_et0 import async_setup_entry, async_unload_entry
 
+        mock_entry.add_to_hass(hass)
         result = await async_setup_entry(hass, mock_entry)
         assert result is True
         assert DOMAIN in hass.data
