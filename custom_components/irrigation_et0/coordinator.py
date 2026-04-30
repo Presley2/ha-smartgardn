@@ -107,6 +107,9 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 "ansaat_bis": dtime(10, 0),
             }
 
+        # Phase 5.1 + 5.5: Startup recovery — check for zones stuck running
+        await self._startup_recovery()
+
         # Register daily 00:05 calculation
         unsub = async_track_time_change(self.hass, self._daily_calc, hour=0, minute=5)
         self._unsubs.append(unsub)
@@ -122,6 +125,203 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             self.hass, self._check_frost_and_lock, interval=timedelta(minutes=1)
         )
         self._unsubs.append(unsub)
+
+        # Phase 5.4: Register trafo problem detection every 5 min
+        unsub = async_track_time_interval(
+            self.hass, self._check_trafo_state, interval=timedelta(minutes=5)
+        )
+        self._unsubs.append(unsub)
+
+    # ===== Phase 5: Reliability =====
+
+    async def _startup_recovery(self) -> None:
+        """Phase 5.1 + 5.5: On startup, check for zones stuck running from power loss."""
+        storage = self._storage_data
+        if not storage:
+            return
+
+        for zone_id, zone_data in storage.get("zones", {}).items():
+            running_since_str = zone_data.get("scheduling", {}).get("running_since")
+            if not running_since_str:
+                continue
+
+            # Zone was running before power loss
+            try:
+                dt_started = datetime.fromisoformat(running_since_str)
+            except (ValueError, TypeError):
+                _LOGGER.error(
+                    "Invalid running_since timestamp for zone %s: %s", zone_id, running_since_str
+                )
+                zone_data["scheduling"]["running_since"] = None
+                continue
+
+            elapsed_min = (datetime.now(UTC) - dt_started).total_seconds() / 60
+            valve_id = self.entry.data.get("zones", {}).get(zone_id, {}).get("valve_entity")
+            if not valve_id:
+                _LOGGER.warning("No valve entity found for zone %s during recovery", zone_id)
+                zone_data["scheduling"]["running_since"] = None
+                continue
+
+            valve_state = self.hass.states.get(valve_id)
+            dauer_min = zone_data.get("scheduling", {}).get("active_zone_remaining_min", 30.0)
+
+            if valve_state and valve_state.state == "on":
+                # Valve is still on
+                if elapsed_min >= dauer_min:
+                    # Time's up, close it
+                    _LOGGER.warning(
+                        "Startup recovery: zone %s ran for %.1f min (dauer %.1f min), closing",
+                        zone_id, elapsed_min, dauer_min
+                    )
+                    await self._valve_off_then_trafo_check(valve_id)
+                    zone_data["scheduling"]["running_since"] = None
+                    await self.storage.async_save_immediate(storage)
+                else:
+                    # Still running, resume the timer
+                    remaining_min = dauer_min - elapsed_min
+                    _LOGGER.info(
+                        "Startup recovery: zone %s resuming, %.1f min remaining",
+                        zone_id, remaining_min
+                    )
+                    end_dt = datetime.now(UTC) + timedelta(minutes=remaining_min)
+                    unsub = async_track_point_in_time(
+                        self.hass, partial(self._zone_done_recovery, zone_id), end_dt
+                    )
+                    self._unsubs.append(unsub)
+            else:
+                # Valve is already off, clean up storage
+                _LOGGER.info("Startup recovery: zone %s valve already off, cleaning up", zone_id)
+                zone_data["scheduling"]["running_since"] = None
+                await self.storage.async_save_immediate(storage)
+
+    async def _zone_done_recovery(self, zone_id: str) -> None:
+        """Called when a recovered zone run finishes."""
+        valve_id = self.entry.data.get("zones", {}).get(zone_id, {}).get("valve_entity")
+        if valve_id:
+            await self._valve_off_then_trafo_check(valve_id)
+        if self._storage_data:
+            self._storage_data["zones"][zone_id]["scheduling"]["running_since"] = None
+            await self.storage.async_save_immediate(self._storage_data)
+
+    async def _compute_et0_with_fallback(self) -> tuple[float, str, bool]:
+        """Phase 5.3: Compute ET0 with fallback chain.
+
+        Returns (et0, method_used, fallback_active).
+        """
+        today = date.today()
+        t_min = self._read_sensor(self.entry.data.get("temp_min_entity"))
+        t_max = self._read_sensor(self.entry.data.get("temp_max_entity"))
+
+        if not t_min or not t_max:
+            _LOGGER.error("No temperature data, using last known or 0")
+            storage = self._storage_data
+            last_et0 = storage["globals"].get("et0_last_known", 0.0) if storage else 0.0
+            return last_et0, "last_known", True
+
+        et_method = self.entry.data.get("et_methode", "fao56")
+
+        # Try primary method (FAO56)
+        if et_method == "fao56":
+            rh_min = self._read_sensor(self.entry.data.get("humidity_min_entity"))
+            rh_max = self._read_sensor(self.entry.data.get("humidity_max_entity"))
+            solar = self._read_sensor(self.entry.data.get("solar_entity"))
+            wind = self._read_sensor(self.entry.data.get("wind_entity"))
+
+            if all(x is not None for x in [rh_min, rh_max, solar, wind]):
+                et0 = calc_et0_fao56(
+                    t_min, t_max, rh_min, rh_max, solar, wind,
+                    self.entry.data["latitude"], self.entry.data["elevation"],
+                    today.timetuple().tm_yday
+                )
+                if self._storage_data:
+                    self._storage_data["globals"]["et0_last_known"] = et0
+                return et0, "fao56", False
+
+            # Fallback to Hargreaves
+            _LOGGER.warning("PM inputs missing, falling back to Hargreaves")
+            et0 = calc_et0_hargreaves(
+                t_min, t_max, self.entry.data["latitude"], today.timetuple().tm_yday
+            )
+            if self._storage_data:
+                self._storage_data["globals"]["et0_last_known"] = et0
+            return et0, "hargreaves", True
+
+        # If primary method is already Hargreaves or other
+        if (et_method == "hargreaves" or et_method == "haude") and t_min and t_max:
+            et0 = calc_et0_hargreaves(
+                t_min, t_max, self.entry.data["latitude"], today.timetuple().tm_yday
+            )
+            if self._storage_data:
+                self._storage_data["globals"]["et0_last_known"] = et0
+            return et0, "hargreaves", False
+
+        # Fallback to last known
+        storage = self._storage_data
+        last_et0 = storage["globals"].get("et0_last_known", 0.0) if storage else 0.0
+        return last_et0, "last_known", True
+
+    async def _check_trafo_state(self) -> None:
+        """Phase 5.4: Every 5 min, check if trafo is unavailable and create repair if stuck."""
+        from homeassistant.helpers import issue_registry as ir
+
+        trafo_id = self.entry.data.get("trafo_entity")
+        if not trafo_id:
+            return
+
+        trafo_state = self.hass.states.get(trafo_id)
+
+        if trafo_state is None or trafo_state.state == "unavailable":
+            if not hasattr(self, "_trafo_unavailable_since"):
+                self._trafo_unavailable_since = datetime.now(UTC)
+                _LOGGER.warning("Trafo became unavailable: %s", trafo_id)
+            elif (datetime.now(UTC) - self._trafo_unavailable_since).total_seconds() > 300:
+                # Unavailable for >5 min, create repair issue
+                issue_id = f"trafo_unavailable_{trafo_id.replace('.', '_')}"
+                try:
+                    ir.async_create_issue(
+                        self.hass, DOMAIN, issue_id,
+                        is_fixable=True, severity=ir.IssueSeverity.WARNING,
+                        translation_key="trafo_unavailable",
+                        translation_placeholders={"entity": trafo_id},
+                    )
+                    _LOGGER.error("Trafo unavailable for >5 min, created repair issue %s", issue_id)
+                except Exception as err:
+                    _LOGGER.error("Failed to create repair issue: %s", err)
+        else:
+            if hasattr(self, "_trafo_unavailable_since"):
+                delattr(self, "_trafo_unavailable_since")
+                self.hass.bus.async_fire("irrigation_et0_trafo_recovered")
+
+    async def _catch_up_missed_days(self) -> None:
+        """Phase 5.2: If last calc was >1 day ago, reconstruct weather from Recorder (placeholder).
+
+        Full implementation with Recorder history reading is deferred to Phase 10.
+        """
+        storage = self._storage_data
+        if not storage:
+            return
+
+        last_calc_str = storage["globals"].get("letzte_et0_berechnung")
+        if not last_calc_str:
+            return
+
+        try:
+            last_calc_dt = datetime.fromisoformat(last_calc_str)
+        except (ValueError, TypeError):
+            _LOGGER.warning("Invalid letzte_et0_berechnung timestamp: %s", last_calc_str)
+            return
+
+        missed_days = (datetime.now(UTC) - last_calc_dt).days
+
+        if missed_days < 2:
+            return
+
+        _LOGGER.info(
+            "Catch-up: missed %d days since last calc, full Recorder reconstruction "
+            "deferred to Phase 10",
+            missed_days,
+        )
+        # Placeholder: no action for now
 
     async def async_shutdown(self) -> None:
         """Cancel all tracked listeners/timers."""
@@ -253,44 +453,20 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             _LOGGER.error("Storage not loaded, skipping daily calc")
             return
 
-        # Step 1: Read weather sensors
-        t_min = self._read_sensor(data.get("temp_min_entity"))
-        t_max = self._read_sensor(data.get("temp_max_entity"))
-        rh_min = self._read_sensor(data.get("humidity_min_entity"))
-        rh_max = self._read_sensor(data.get("humidity_max_entity"))
-        solar = self._read_sensor(data.get("solar_entity"))
-        wind = self._read_sensor(data.get("wind_entity"))
+        # Phase 5.2: Catch-up on missed days
+        await self._catch_up_missed_days()
+
+        # Step 1: Read weather sensors and rain
         rain = self._read_sensor(data.get("rain_entity"))
 
-        if t_min is None or t_max is None:
-            _LOGGER.error("Missing required weather sensors (T_min, T_max)")
-            return
+        # Phase 5.3: Compute ET0 with fallback chain
+        et0, et_method, et_fallback_active = await self._compute_et0_with_fallback()
 
-        # Step 2: Compute ET0 using active method
-        et_method = data.get("et_methode", "fao56")
+        # Compute Ka (temperature correction factor)
+        t_max = self._read_sensor(data.get("temp_max_entity"))
+        ka = calc_ka(t_max if t_max else 20.0)
 
-        if et_method == "fao56" and all(
-            x is not None for x in [rh_min, rh_max, solar, wind]
-        ):
-            et0 = calc_et0_fao56(
-                t_min,
-                t_max,
-                rh_min,
-                rh_max,
-                solar,
-                wind,
-                data["latitude"],
-                data["elevation"],
-                today.timetuple().tm_yday,
-            )
-        elif et_method == "hargreaves" or (t_min and t_max):
-            et0 = calc_et0_hargreaves(t_min, t_max, data["latitude"], today.timetuple().tm_yday)
-        else:
-            et0 = 0.0
-
-        ka = calc_ka(t_max)
-
-        # Step 3: For each zone, compute ETc and NFK balance
+        # Step 2: For each zone, compute ETc and NFK balance
         for zone_id, zone_cfg in data.get("zones", {}).items():
             zone_storage = storage["zones"].get(zone_id)
             if not zone_storage:
@@ -324,7 +500,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 }
             )
 
-        # Step 4: Compute GTS, check year reset
+        # Step 3: Compute GTS, check year reset
         globals_data = storage["globals"]
         if gts_should_reset(today, None):
             globals_data["gts"] = 0.0
@@ -334,7 +510,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         globals_data["gts"] += gts_inc
         globals_data["letzte_et0_berechnung"] = datetime.now(UTC).isoformat()
 
-        # Step 5-6: For each zone, compute next_start_dt and schedule async_track_point_in_time
+        # Step 4-5: For each zone, compute next_start_dt and schedule async_track_point_in_time
         for zone_id, zone_cfg in data.get("zones", {}).items():
             zone_storage = storage["zones"].get(zone_id)
             if not zone_storage:
@@ -360,11 +536,21 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             else:
                 zone_storage["scheduling"]["next_start_dt"] = None
 
-        # Step 7: Persist storage and fire event
+        # Step 6: Persist storage and fire event
         await self.storage.async_save_immediate(storage)
+
+        # Update coordinator data with fallback status
+        if self.data is None:
+            self.data = {}
+        self.data["et_fallback_active"] = et_fallback_active
+
         self.hass.bus.async_fire(
             "irrigation_et0_calc_done", {"timestamp": datetime.now(UTC).isoformat()}
         )
+        if et_fallback_active:
+            self.hass.bus.async_fire(
+                "irrigation_et0_fallback_active", {"method": et_method}
+            )
 
     def _read_sensor(self, entity_id: str | None) -> float | None:
         """Read a sensor value, return None if unavailable or not a number."""
@@ -461,10 +647,8 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
 
         frost_active = False
         if t_min_state and t_min_state.state not in ("unknown", "unavailable"):
-            try:
+            with contextlib.suppress(ValueError):
                 frost_active = float(t_min_state.state) < frost_threshold
-            except ValueError:
-                pass
 
         if frost_active and not self._frost_active:
             _LOGGER.warning("Frost lock activated: stopping all irrigation")

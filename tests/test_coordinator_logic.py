@@ -550,16 +550,18 @@ async def test_daily_calc_fires_calc_done_event(hass: HomeAssistant, sample_entr
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
-async def test_daily_calc_skips_if_missing_temps(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
-    """Test that daily calc skips if required temp sensors missing."""
+async def test_daily_calc_continues_with_fallback_if_missing_temps(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
+    """Test that daily calc continues with fallback when temps missing (Phase 5.3 reliability)."""
     coord = await _setup_coordinator(hass, sample_entry)
     try:
         # Don't set t_min/t_max
         with patch.object(coord.storage, "async_save_immediate", new_callable=AsyncMock) as mock_save:
             await coord._daily_calc()
 
-            # Should not save
-            mock_save.assert_not_called()
+            # Should save with fallback ET0 (last_known or 0)
+            mock_save.assert_called_once()
+            call_args = mock_save.call_args[0][0]
+            assert call_args["globals"]["letzte_et0_berechnung"] is not None
     finally:
         await coord.async_shutdown()
 
