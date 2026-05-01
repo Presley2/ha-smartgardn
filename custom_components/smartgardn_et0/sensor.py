@@ -345,6 +345,175 @@ class IrrigationGtsSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity
         return storage["globals"]["gts"]
 
 
+class IrrigationEt0ForecastMorgenSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_native_unit_of_measurement = "mm/day"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "ET₀ Prognose morgen"
+
+    def __init__(self, coordinator: IrrigationCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_et0_forecast_morgen"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
+
+    @property
+    def native_value(self) -> float | None:
+        if not self.coordinator.data:
+            return None
+        forecast = self.coordinator.data.get("dwd_forecast", [])
+        if len(forecast) > 0:
+            return forecast[0].et0_mm
+        return None
+
+
+class IrrigationEt0ForecastUebermorgeSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_native_unit_of_measurement = "mm/day"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "ET₀ Prognose übermorgen"
+
+    def __init__(self, coordinator: IrrigationCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_et0_forecast_uebermorgen"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
+
+    @property
+    def native_value(self) -> float | None:
+        if not self.coordinator.data:
+            return None
+        forecast = self.coordinator.data.get("dwd_forecast", [])
+        if len(forecast) > 1:
+            return forecast[1].et0_mm
+        return None
+
+
+class IrrigationEt0ForecastTag3Sensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_native_unit_of_measurement = "mm/day"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "ET₀ Prognose Tag 3"
+
+    def __init__(self, coordinator: IrrigationCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_et0_forecast_tag3"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
+
+    @property
+    def native_value(self) -> float | None:
+        if not self.coordinator.data:
+            return None
+        forecast = self.coordinator.data.get("dwd_forecast", [])
+        if len(forecast) > 2:
+            return forecast[2].et0_mm
+        return None
+
+
+class IrrigationRegenForecastMorgenSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_native_unit_of_measurement = "mm"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "Regen Prognose morgen"
+
+    def __init__(self, coordinator: IrrigationCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_regen_forecast_morgen"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
+
+    @property
+    def native_value(self) -> float | None:
+        if not self.coordinator.data:
+            return None
+        forecast = self.coordinator.data.get("dwd_forecast", [])
+        if len(forecast) > 0:
+            return forecast[0].precip_sum
+        return None
+
+
+class IrrigationRegenForecastUebermorgeSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_native_unit_of_measurement = "mm"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "Regen Prognose übermorgen"
+
+    def __init__(self, coordinator: IrrigationCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_regen_forecast_uebermorgen"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
+
+    @property
+    def native_value(self) -> float | None:
+        if not self.coordinator.data:
+            return None
+        forecast = self.coordinator.data.get("dwd_forecast", [])
+        if len(forecast) > 1:
+            return forecast[1].precip_sum
+        return None
+
+
+class IrrigationRegenForecastTag3Sensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_native_unit_of_measurement = "mm"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "Regen Prognose Tag 3"
+
+    def __init__(self, coordinator: IrrigationCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_regen_forecast_tag3"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry_id)})
+
+    @property
+    def native_value(self) -> float | None:
+        if not self.coordinator.data:
+            return None
+        forecast = self.coordinator.data.get("dwd_forecast", [])
+        if len(forecast) > 2:
+            return forecast[2].precip_sum
+        return None
+
+
+class IrrigationNfkForecastMorgenSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_native_unit_of_measurement = "mm"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_name = "NFK Prognose morgen"
+
+    def __init__(
+        self,
+        coordinator: IrrigationCoordinator,
+        entry_id: str,
+        zone_id: str,
+        zone_cfg: dict,
+    ) -> None:
+        super().__init__(coordinator)
+        self._zone_id = zone_id
+        self._zone_cfg = zone_cfg
+        self._attr_unique_id = f"{entry_id}_{zone_id}_nfk_forecast_morgen"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry_id}_{zone_id}")})
+
+    @property
+    def native_value(self) -> float | None:
+        if not self.coordinator.data:
+            return None
+        storage = self.coordinator.data.get("storage")
+        if not storage:
+            return None
+        zone = storage["zones"].get(self._zone_id)
+        if not zone:
+            return None
+        forecast = self.coordinator.data.get("dwd_forecast", [])
+        if len(forecast) == 0:
+            return None
+
+        nfk_aktuell = zone["nfk_aktuell"]
+        nfk_max = self._zone_cfg.get("nfk_max", 150)
+        etc_morgen = forecast[0].et0_mm
+        regen_morgen = forecast[0].precip_sum
+
+        nfk_morgen = nfk_aktuell - etc_morgen + regen_morgen
+        nfk_morgen = max(0.0, min(nfk_max, nfk_morgen))
+        return nfk_morgen
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -371,9 +540,21 @@ async def async_setup_entry(
         entities.append(
             IrrigationBucketPrognoseSensor(coordinator, entry.entry_id, zone_id, zone_cfg)
         )
+        if entry.data.get("dwd_forecast_enabled"):
+            entities.append(
+                IrrigationNfkForecastMorgenSensor(coordinator, entry.entry_id, zone_id, zone_cfg)
+            )
 
     entities.append(IrrigationEt0FaoSensor(coordinator, entry.entry_id))
     entities.append(IrrigationGtsSensor(coordinator, entry.entry_id))
+
+    if entry.data.get("dwd_forecast_enabled"):
+        entities.append(IrrigationEt0ForecastMorgenSensor(coordinator, entry.entry_id))
+        entities.append(IrrigationEt0ForecastUebermorgeSensor(coordinator, entry.entry_id))
+        entities.append(IrrigationEt0ForecastTag3Sensor(coordinator, entry.entry_id))
+        entities.append(IrrigationRegenForecastMorgenSensor(coordinator, entry.entry_id))
+        entities.append(IrrigationRegenForecastUebermorgeSensor(coordinator, entry.entry_id))
+        entities.append(IrrigationRegenForecastTag3Sensor(coordinator, entry.entry_id))
 
     et_methode = entry.options.get("et_methode") or entry.data.get("et_methode")
     if et_methode == "hargreaves":

@@ -34,11 +34,11 @@ SOIL_TYPES = {
 }
 
 # Zone type defaults (Kc per zone type)
+# Only lawn types use ET0/NFK-based calculation
+# Drip types are time/manually controlled only
 ZONE_TYPE_KC = {
-    "lawn": 0.8,
-    "drip": 1.0,
-    "roof": 0.6,
-    "other": 0.8,
+    "lawn": 0.8,    # ET0-based, weather-dependent
+    "drip": 1.0,    # Time-controlled only, no ET0 calc
 }
 ZONE_TYPES = list(ZONE_TYPE_KC.keys())
 
@@ -75,6 +75,10 @@ ET_METHOD_FAO56 = "fao56"
 ET_METHOD_HARGREAVES = "hargreaves"
 ET_METHOD_HAUDE = "haude"
 ET_METHODS = [ET_METHOD_FAO56, ET_METHOD_HARGREAVES, ET_METHOD_HAUDE]
+
+# DWD Forecast API
+BRIGHTSKY_API_URL = "https://api.brightsky.dev/weather"
+BRIGHTSKY_TIMEOUT_S = 10
 
 # HA platform list (for async_forward_entry_setups)
 PLATFORMS = [

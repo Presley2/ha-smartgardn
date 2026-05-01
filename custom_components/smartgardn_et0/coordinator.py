@@ -436,23 +436,27 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
     # ===== Phase 4: Trafo sequencing =====
 
     async def _trafo_on_then_valve(self, valve_entity_id: str) -> None:
-        """Turn on trafo, wait TRAFO_DELAY_S, turn on valve."""
-        await self._switch_service("turn_on", self.entry.data["trafo_entity"])
-        await asyncio.sleep(TRAFO_DELAY_S)
+        """Turn on trafo (if configured), wait TRAFO_DELAY_S, turn on valve."""
+        trafo_entity = self.entry.data.get("trafo_entity")
+        if trafo_entity:
+            await self._switch_service("turn_on", trafo_entity)
+            await asyncio.sleep(TRAFO_DELAY_S)
         await self._switch_service("turn_on", valve_entity_id)
 
     async def _valve_off_then_trafo_check(self, valve_entity_id: str) -> None:
         """Turn off valve, wait TRAFO_DELAY_S, turn off trafo if all valves are off."""
         await self._switch_service("turn_off", valve_entity_id)
-        await asyncio.sleep(TRAFO_DELAY_S)
-        # Check all zone valves — if all off, turn off trafo
-        all_off = all(
-            (state := self.hass.states.get(self.entry.data["zones"][zid].get("valve_entity")))
-            and state.state == "off"
-            for zid in self.entry.data.get("zones", {})
-        )
-        if all_off:
-            await self._switch_service("turn_off", self.entry.data["trafo_entity"])
+        trafo_entity = self.entry.data.get("trafo_entity")
+        if trafo_entity:
+            await asyncio.sleep(TRAFO_DELAY_S)
+            # Check all zone valves — if all off, turn off trafo
+            all_off = all(
+                (state := self.hass.states.get(self.entry.data["zones"][zid].get("valve_entity")))
+                and state.state == "off"
+                for zid in self.entry.data.get("zones", {})
+            )
+            if all_off:
+                await self._switch_service("turn_off", trafo_entity)
 
     async def _switch_service(self, service: str, entity_id: str) -> None:
         """Call turn_on or turn_off service for a switch entity."""
@@ -514,7 +518,10 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
 
     async def _failsafe_check(self) -> None:
         """Every 5 min: if trafo is on but all valves are off, turn off trafo."""
-        trafo_state = self.hass.states.get(self.entry.data["trafo_entity"])
+        trafo_entity = self.entry.data.get("trafo_entity")
+        if not trafo_entity:
+            return
+        trafo_state = self.hass.states.get(trafo_entity)
         if trafo_state and trafo_state.state == "on":
             all_off = all(
                 (state := self.hass.states.get(self.entry.data["zones"][zid].get("valve_entity")))
@@ -523,7 +530,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             )
             if all_off:
                 _LOGGER.warning("Failsafe: trafo on but all valves off, turning off trafo")
-                await self._switch_service("turn_off", self.entry.data["trafo_entity"])
+                await self._switch_service("turn_off", trafo_entity)
 
     # ===== Phase 4: Daily calculation (00:05) =====
 
@@ -555,12 +562,20 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             t_max = self._read_sensor(data.get("temp_max_entity"))
         ka = calc_ka(t_max if t_max else 20.0)
 
-        # Step 2: For each zone, compute ETc and NFK balance
+        # Step 2: For each zone, compute ETc and NFK balance (LAWN only, not DRIP)
         for zone_id, zone_cfg in data.get("zones", {}).items():
             zone_storage = storage["zones"].get(zone_id)
             if not zone_storage:
                 continue
 
+            zone_type = zone_cfg.get("zone_type", "lawn")
+
+            # DRIP zones: no ET0/NFK calculation, time-controlled only
+            if zone_type == "drip":
+                zone_storage["letzte_berechnung"] = str(today)
+                continue
+
+            # LAWN zones: compute ETc and NFK water balance
             kc = zone_cfg.get("kc", 0.8)
             etc = calc_etc(et0, kc, ka)
             beregnung_today = 0.0  # Simplified: no irrigation computation yet
@@ -646,6 +661,10 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         if self.data is None:
             self.data = {}
         self.data["et_fallback_active"] = et_fallback_active
+
+        # Step 7: DWD Forecast (optional, fire-and-forget)
+        forecast = await self._fetch_dwd_forecast()
+        self.data["dwd_forecast"] = forecast
 
         self.hass.bus.async_fire(
             "smartgardn_et0_calc_done", {"timestamp": datetime.now(UTC).isoformat()}
@@ -875,5 +894,32 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             return None
 
     async def start_zone_manual(self, zone_id: str, dauer_min: float) -> None:
-        """Manually start a zone. Full implementation in Phase 4."""
+        """Manually start a zone with trafo sequencing through the queue."""
+        zone_cfg = self.entry.data.get("zones", {}).get(zone_id)
+        if not zone_cfg:
+            _LOGGER.error("Zone %s not configured", zone_id)
+            return
+
+        if self._frost_active:
+            _LOGGER.warning("Cannot start zone %s: frost lock active", zone_id)
+            return
+
         _LOGGER.info("Manual start zone %s for %.1f min", zone_id, dauer_min)
+        await self.async_enqueue_start(zone_id, dauer_min)
+
+    async def _fetch_dwd_forecast(self) -> list:
+        """Fetch DWD forecast if enabled."""
+        if not self.entry.data.get("dwd_forecast_enabled", False):
+            return []
+
+        try:
+            lat = self.entry.data.get("dwd_lat_override") or self.entry.data["latitude"]
+            lon = self.entry.data.get("dwd_lon_override") or self.entry.data["longitude"]
+            elev = self.entry.data.get("elevation", 0)
+
+            from custom_components.smartgardn_et0.dwd_forecast import fetch_dwd_forecast
+
+            return await fetch_dwd_forecast(self.hass, lat, lon, elev)
+        except Exception as err:
+            _LOGGER.warning("DWD forecast failed: %s", err)
+            return []

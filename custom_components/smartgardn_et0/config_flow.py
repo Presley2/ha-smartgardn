@@ -79,7 +79,7 @@ STEP_SOLAR_CONFIG_SCHEMA = vol.Schema(
 
 STEP_HARDWARE_SCHEMA = vol.Schema(
     {
-        vol.Required("trafo_entity"): _ENTITY_SWITCH,
+        vol.Optional("trafo_entity"): _ENTITY_SWITCH,
         vol.Required("frost_threshold", default=4.0): NumberSelector(
             NumberSelectorConfig(min=-10, max=15, step=0.5, mode=NumberSelectorMode.BOX)
         ),
@@ -138,7 +138,7 @@ def _build_entry_data(
         "solar_sensor_type": weather.get("solar_sensor_type", "w_m2"),
         "wind_entity": weather.get("wind_entity"),
         "rain_entity": weather.get("rain_entity"),
-        "trafo_entity": hardware["trafo_entity"],
+        "trafo_entity": hardware.get("trafo_entity"),
         "frost_threshold": hardware["frost_threshold"],
         "zones": zones,
     }
@@ -225,7 +225,7 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self._hardware = {
-                "trafo_entity": user_input["trafo_entity"],
+                "trafo_entity": user_input.get("trafo_entity"),
                 "frost_threshold": float(user_input["frost_threshold"]),
             }
             return await self.async_step_zone()
@@ -316,7 +316,7 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
         """Show menu for different option types."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["general", "weather"],
+            menu_options=["general", "weather", "forecast"],
         )
 
     async def async_step_general(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -377,3 +377,41 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
         )
 
         return self.async_show_form(step_id="weather", data_schema=schema)
+
+    async def async_step_forecast(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Options for DWD forecast configuration."""
+        current = self.config_entry.data
+
+        if user_input is not None:
+            updated = dict(current)
+            updated["dwd_forecast_enabled"] = user_input.get("dwd_forecast_enabled", False)
+            if user_input.get("dwd_lat_override"):
+                updated["dwd_lat_override"] = float(user_input["dwd_lat_override"])
+            else:
+                updated.pop("dwd_lat_override", None)
+            if user_input.get("dwd_lon_override"):
+                updated["dwd_lon_override"] = float(user_input["dwd_lon_override"])
+            else:
+                updated.pop("dwd_lon_override", None)
+            return self.async_create_entry(title="", data=updated)
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    "dwd_forecast_enabled",
+                    default=current.get("dwd_forecast_enabled", False),
+                ): vol.In([False, True]),
+                vol.Optional(
+                    "dwd_lat_override", default=current.get("dwd_lat_override", "")
+                ): NumberSelector(
+                    NumberSelectorConfig(min=-90, max=90, step=0.01, mode=NumberSelectorMode.BOX)
+                ),
+                vol.Optional(
+                    "dwd_lon_override", default=current.get("dwd_lon_override", "")
+                ): NumberSelector(
+                    NumberSelectorConfig(min=-180, max=180, step=0.01, mode=NumberSelectorMode.BOX)
+                ),
+            }
+        )
+
+        return self.async_show_form(step_id="forecast", data_schema=schema)
