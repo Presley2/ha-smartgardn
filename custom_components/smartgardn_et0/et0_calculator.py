@@ -22,6 +22,13 @@ from custom_components.smartgardn_et0._pyeto_vendor import (
 )
 from custom_components.smartgardn_et0.const import SENSOR_LIMITS
 
+# Solar sensor type conversions to W/m²
+SOLAR_SENSOR_CONVERSIONS = {
+    "w_m2": 1.0,           # W/m² — no conversion needed
+    "lux": 1.0 / 54000.0,  # Lux to W/m² (approx. 54000 lux = 1000 W/m²)
+    "par": 0.51 / 1.0,     # µmol/m²/s to W/m² (1 µmol/m²/s ≈ 0.51 W/m²)
+}
+
 # Unit conversion: W/m² × 0.0864 = MJ/m²/day
 W_M2_TO_MJ_M2_D = 0.0864
 
@@ -45,6 +52,21 @@ _HAUDE_MONTHLY_FACTORS = {
 def _clamp(value: float, key: str) -> float:
     lo, hi = SENSOR_LIMITS[key]
     return max(lo, min(hi, value))
+
+
+def convert_solar_to_w_m2(value: float, sensor_type: str) -> float:
+    """Convert solar sensor value to W/m² based on sensor type.
+
+    Args:
+        value: Measured value from sensor
+        sensor_type: "w_m2", "lux", "par", or "none"
+
+    Returns:
+        Value in W/m²
+    """
+    if sensor_type not in SOLAR_SENSOR_CONVERSIONS:
+        return 0.0
+    return value * SOLAR_SENSOR_CONVERSIONS[sensor_type]
 
 
 def calc_et0_fao56(

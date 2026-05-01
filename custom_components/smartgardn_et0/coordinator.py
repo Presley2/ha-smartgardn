@@ -35,6 +35,7 @@ from custom_components.smartgardn_et0.et0_calculator import (
     calc_et0_fao56,
     calc_et0_hargreaves,
     calc_ka,
+    convert_solar_to_w_m2,
 )
 from custom_components.smartgardn_et0.gts_calculator import gts_increment, gts_should_reset
 from custom_components.smartgardn_et0.storage import IrrigationStorage, StorageData
@@ -300,7 +301,11 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 rh_min = self._read_sensor(self.entry.data.get("humidity_min_entity"))
                 rh_max = self._read_sensor(self.entry.data.get("humidity_max_entity"))
 
-            solar = self._read_sensor(self.entry.data.get("solar_entity"))
+            # Read solar and convert based on sensor type
+            solar_raw = self._read_sensor(self.entry.data.get("solar_entity"))
+            solar_sensor_type = self.entry.data.get("solar_sensor_type", "w_m2")
+            solar = convert_solar_to_w_m2(solar_raw, solar_sensor_type) if solar_raw else None
+
             wind = self._read_sensor(self.entry.data.get("wind_entity"))
 
             if all(x is not None for x in [rh_min, rh_max, solar, wind]):

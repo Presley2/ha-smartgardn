@@ -38,6 +38,7 @@ STEP_USER_SCHEMA = vol.Schema(
 _OPTIONAL_WEATHER_FIELDS = (
     "humidity_entity",
     "solar_entity",
+    "solar_sensor_type",
     "wind_entity",
     "rain_entity",
 )
@@ -47,8 +48,32 @@ STEP_WEATHER_SCHEMA = vol.Schema(
         vol.Required("temp_entity"): _ENTITY_SENSOR,
         vol.Optional("humidity_entity"): _ENTITY_SENSOR,
         vol.Optional("solar_entity"): _ENTITY_SENSOR,
+        vol.Optional("solar_sensor_type"): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    "w_m2",      # W/m² (Photodiode, Pyranometer)
+                    "lux",       # Lux (simple light sensors)
+                    "par",       # PAR (photosynthetically active radiation)
+                ]
+            )
+        ),
         vol.Optional("wind_entity"): _ENTITY_SENSOR,
         vol.Optional("rain_entity"): _ENTITY_SENSOR,
+    }
+)
+
+STEP_SOLAR_CONFIG_SCHEMA = vol.Schema(
+    {
+        vol.Required("solar_sensor_type"): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    "w_m2",      # W/m² (Photodiode, Pyranometer) — multiply by 0.0864
+                    "lux",       # Lux — divide by 54000 then multiply by 0.0864
+                    "par",       # PAR µmol/m²/s — multiply by 0.51 then divide by 0.0864
+                    "none",      # No solar sensor (fallback to Hargreaves)
+                ]
+            )
+        ),
     }
 )
 
@@ -110,6 +135,7 @@ def _build_entry_data(
         "temp_entity": weather.get("temp_entity"),
         "humidity_entity": weather.get("humidity_entity"),
         "solar_entity": weather.get("solar_entity"),
+        "solar_sensor_type": weather.get("solar_sensor_type", "w_m2"),
         "wind_entity": weather.get("wind_entity"),
         "rain_entity": weather.get("rain_entity"),
         "trafo_entity": hardware["trafo_entity"],
@@ -181,6 +207,7 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
                 "temp_entity": user_input.get("temp_entity"),
                 "humidity_entity": user_input.get("humidity_entity"),
                 "solar_entity": user_input.get("solar_entity"),
+                "solar_sensor_type": user_input.get("solar_sensor_type", "w_m2"),
                 "wind_entity": user_input.get("wind_entity"),
                 "rain_entity": user_input.get("rain_entity"),
             }
@@ -324,6 +351,7 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
             updated["temp_entity"] = user_input.get("temp_entity")
             updated["humidity_entity"] = user_input.get("humidity_entity")
             updated["solar_entity"] = user_input.get("solar_entity")
+            updated["solar_sensor_type"] = user_input.get("solar_sensor_type", "w_m2")
             updated["wind_entity"] = user_input.get("wind_entity")
             updated["rain_entity"] = user_input.get("rain_entity")
             return self.async_create_entry(title="", data=updated)
@@ -333,6 +361,16 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
                 vol.Required("temp_entity", default=current.get("temp_entity", "")): _ENTITY_SENSOR,
                 vol.Optional("humidity_entity", default=current.get("humidity_entity", "")): _ENTITY_SENSOR,
                 vol.Optional("solar_entity", default=current.get("solar_entity", "")): _ENTITY_SENSOR,
+                vol.Optional("solar_sensor_type", default=current.get("solar_sensor_type", "w_m2")): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            "w_m2",   # W/m² (Photodiode, Pyranometer)
+                            "lux",    # Lux (simple light sensors)
+                            "par",    # PAR (photosynthetically active radiation)
+                            "none",   # No solar sensor
+                        ]
+                    )
+                ),
                 vol.Optional("wind_entity", default=current.get("wind_entity", "")): _ENTITY_SENSOR,
                 vol.Optional("rain_entity", default=current.get("rain_entity", "")): _ENTITY_SENSOR,
             }
