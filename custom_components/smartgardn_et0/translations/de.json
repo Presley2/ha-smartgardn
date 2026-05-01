@@ -13,11 +13,10 @@
       "weather": {
         "title": "Wetter-Sensoren",
         "data": {
-          "temp_min_entity": "Temperatur Min",
-          "temp_max_entity": "Temperatur Max",
-          "humidity_min_entity": "Luftf. Min (optional)",
-          "humidity_max_entity": "Luftf. Max (optional)",
+          "temp_entity": "Temperatur-Sensor",
+          "humidity_entity": "Luftfeuchtigkeit (optional)",
           "solar_entity": "Solarstrahlung (optional)",
+          "solar_sensor_type": "Solarstrahlung-Typ",
           "wind_entity": "Windgeschwindigkeit (optional)",
           "rain_entity": "Niederschlag (optional)"
         }
@@ -25,7 +24,7 @@
       "hardware": {
         "title": "Hardware",
         "data": {
-          "trafo_entity": "Trafo-Aktor (24V)",
+          "trafo_entity": "Trafo-Aktor (24V, optional)",
           "frost_threshold": "Frostschutz-Schwelle (°C)"
         }
       },
@@ -49,6 +48,60 @@
         "menu_options": {
           "add_zone": "Weitere Zone hinzufügen",
           "finish": "Fertig"
+        }
+      },
+      "general": {
+        "title": "Allgemeine Einstellungen",
+        "data": {
+          "name": "Name der Anlage",
+          "frost_threshold": "Frostschutz-Schwelle (°C)"
+        }
+      },
+      "forecast": {
+        "title": "Wettervorhersage-Einstellungen",
+        "data": {
+          "dwd_forecast_enabled": "DWD 3-Tage-Vorhersage aktivieren",
+          "dwd_lat_override": "Breitengrad-Überschreibung (optional)",
+          "dwd_lon_override": "Längengrad-Überschreibung (optional)",
+          "regen_skip_threshold_mm": "Regen-Schwellwert (mm)"
+        }
+      }
+    },
+    "options": {
+      "step": {
+        "init": {
+          "menu_options": {
+            "general": "Allgemein",
+            "weather": "Wetter",
+            "forecast": "Vorhersage"
+          }
+        },
+        "general": {
+          "title": "Allgemeine Einstellungen",
+          "data": {
+            "name": "Name der Anlage",
+            "frost_threshold": "Frostschutz-Schwelle (°C)"
+          }
+        },
+        "weather": {
+          "title": "Wetter-Sensoren",
+          "data": {
+            "temp_entity": "Temperatur-Sensor",
+            "humidity_entity": "Luftfeuchtigkeit (optional)",
+            "solar_entity": "Solarstrahlung (optional)",
+            "solar_sensor_type": "Solarstrahlung-Typ",
+            "wind_entity": "Windgeschwindigkeit (optional)",
+            "rain_entity": "Niederschlag (optional)"
+          }
+        },
+        "forecast": {
+          "title": "Wettervorhersage-Einstellungen",
+          "data": {
+            "dwd_forecast_enabled": "DWD 3-Tage-Vorhersage aktivieren",
+            "dwd_lat_override": "Breitengrad-Überschreibung (optional)",
+            "dwd_lon_override": "Längengrad-Überschreibung (optional)",
+            "regen_skip_threshold_mm": "Regen-Schwellwert (mm)"
+          }
         }
       }
     },

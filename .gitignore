@@ -39,3 +39,14 @@ coverage.xml
 
 # uv
 uv.lock
+.env
+.env.local
+
+# Local development (Claude Code superpowers, plans, memory)
+docs/superpowers/
+.claude/
+.vscode-insiders/
+
+# Secrets and tokens
+*.token
+.github_token

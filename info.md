@@ -1,13 +1,15 @@
-# smartgardn_et0
+# SmartGardn ET₀
 
-Smart irrigation scheduling for Home Assistant using reference evapotranspiration (ET₀ / FAO-56 Penman-Monteith).
+**Scientific irrigation control based on FAO-56 Penman-Monteith ET₀ calculations with intelligent rain-skip scheduling.**
 
-Adjusts daily zone run times based on actual atmospheric demand — so your garden gets exactly the water it needs, no more, no less.
+Automates irrigation zones using daily NFK (soil water balance) and ET₀ (reference evapotranspiration). Adapts watering to weather forecasts — skips irrigation when rain is expected, precise amounts when watering is needed.
 
 **Key features:**
-- ET₀-based water budgeting per zone
-- Weather-adaptive scheduling with sunrise offsets
-- Rain-skip logic
-- Full UI configuration
+- FAO-56 Penman-Monteith ET₀ calculations with daily NFK soil balance per zone
+- 3-day DWD weather forecast with intelligent rain-skip scheduling
+- History visualization with 30-day curves and forecast preview
+- Flexible irrigation modes: off, semi-automatic (schedule), full-automatic (threshold), seed watering
+- Optional transformer sequencing with cycle & soak support
+- Frost protection and power-loss recovery
 
-See the [README](https://github.com/youruser/irrigation-ha#readme) for full documentation.
+See the [README](https://github.com/Presley2/ha-smartgardn#readme) for full documentation.

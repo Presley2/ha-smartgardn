@@ -13,11 +13,10 @@
       "weather": {
         "title": "Weather sensors",
         "data": {
-          "temp_min_entity": "Temperature Min",
-          "temp_max_entity": "Temperature Max",
-          "humidity_min_entity": "Humidity Min (optional)",
-          "humidity_max_entity": "Humidity Max (optional)",
+          "temp_entity": "Temperature sensor",
+          "humidity_entity": "Humidity (optional)",
           "solar_entity": "Solar radiation (optional)",
+          "solar_sensor_type": "Solar sensor type",
           "wind_entity": "Wind speed (optional)",
           "rain_entity": "Precipitation (optional)"
         }
@@ -25,7 +24,7 @@
       "hardware": {
         "title": "Hardware",
         "data": {
-          "trafo_entity": "Transformer switch (24V)",
+          "trafo_entity": "Transformer switch (24V, optional)",
           "frost_threshold": "Frost protection threshold (°C)"
         }
       },
@@ -49,6 +48,60 @@
         "menu_options": {
           "add_zone": "Add another zone",
           "finish": "Finish"
+        }
+      },
+      "general": {
+        "title": "General settings",
+        "data": {
+          "name": "Installation name",
+          "frost_threshold": "Frost protection threshold (°C)"
+        }
+      },
+      "forecast": {
+        "title": "Forecast settings",
+        "data": {
+          "dwd_forecast_enabled": "Enable DWD 3-day forecast",
+          "dwd_lat_override": "Latitude override (optional)",
+          "dwd_lon_override": "Longitude override (optional)",
+          "regen_skip_threshold_mm": "Rain skip threshold (mm)"
+        }
+      }
+    },
+    "options": {
+      "step": {
+        "init": {
+          "menu_options": {
+            "general": "General",
+            "weather": "Weather",
+            "forecast": "Forecast"
+          }
+        },
+        "general": {
+          "title": "General settings",
+          "data": {
+            "name": "Installation name",
+            "frost_threshold": "Frost protection threshold (°C)"
+          }
+        },
+        "weather": {
+          "title": "Weather sensors",
+          "data": {
+            "temp_entity": "Temperature sensor",
+            "humidity_entity": "Humidity (optional)",
+            "solar_entity": "Solar radiation (optional)",
+            "solar_sensor_type": "Solar sensor type",
+            "wind_entity": "Wind speed (optional)",
+            "rain_entity": "Precipitation (optional)"
+          }
+        },
+        "forecast": {
+          "title": "Forecast settings",
+          "data": {
+            "dwd_forecast_enabled": "Enable DWD 3-day forecast",
+            "dwd_lat_override": "Latitude override (optional)",
+            "dwd_lon_override": "Longitude override (optional)",
+            "regen_skip_threshold_mm": "Rain skip threshold (mm)"
+          }
         }
       }
     },
