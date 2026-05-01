@@ -393,6 +393,9 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
                 updated["dwd_lon_override"] = float(user_input["dwd_lon_override"])
             else:
                 updated.pop("dwd_lon_override", None)
+            updated["regen_skip_threshold_mm"] = float(
+                user_input.get("regen_skip_threshold_mm", 10.0)
+            )
             return self.async_create_entry(title="", data=updated)
 
         schema = vol.Schema(
@@ -410,6 +413,11 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
                     "dwd_lon_override", default=current.get("dwd_lon_override", "")
                 ): NumberSelector(
                     NumberSelectorConfig(min=-180, max=180, step=0.01, mode=NumberSelectorMode.BOX)
+                ),
+                vol.Required(
+                    "regen_skip_threshold_mm", default=current.get("regen_skip_threshold_mm", 10.0)
+                ): NumberSelector(
+                    NumberSelectorConfig(min=1, max=50, step=1, mode=NumberSelectorMode.BOX)
                 ),
             }
         )

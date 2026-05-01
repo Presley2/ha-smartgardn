@@ -45,6 +45,14 @@ class IrrigationNFKSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity
             return None
         return zone["nfk_aktuell"]
 
+    @property
+    def extra_state_attributes(self) -> dict:
+        if not self.coordinator.data:
+            return {}
+        zone_verlauf = self.coordinator.data.get("zone_verlauf", {})
+        verlauf = zone_verlauf.get(self._zone_id, [])
+        return {"verlauf": verlauf}
+
 
 class IrrigationNFKProzentSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
     _attr_has_entity_name = True

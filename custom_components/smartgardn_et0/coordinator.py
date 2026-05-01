@@ -427,10 +427,18 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             with contextlib.suppress(ValueError):
                 frost_active = float(temp_state.state) < frost_threshold
 
+        # Prepare zone history data for cards (last 30 days per zone)
+        zone_verlauf = {}
+        if self._storage_data:
+            for zone_id, zone_data in self._storage_data.get("zones", {}).items():
+                verlauf = zone_data.get("verlauf", [])
+                zone_verlauf[zone_id] = verlauf[-30:]
+
         return {
             "frost_active": frost_active,
             "trafo_state": trafo_state.state if trafo_state else "unavailable",
             "storage": self._storage_data,
+            "zone_verlauf": zone_verlauf,
         }
 
     # ===== Phase 4: Trafo sequencing =====
@@ -696,6 +704,21 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         cs_pause = self._zone_numbers[zone_id]["cs_pause"]
         await self.async_enqueue_start(zone_id, dauer, cs_zyklen, cs_pause)
 
+    def _should_skip_for_rain(self, target_date_offset: int) -> bool:
+        """True if rain forecast for target day exceeds threshold.
+
+        Args:
+            target_date_offset: 1=tomorrow, 2=day-after-tomorrow
+        """
+        if not self.entry.data.get("dwd_forecast_enabled"):
+            return False
+        forecast = (self.data or {}).get("dwd_forecast", [])
+        threshold = self.entry.data.get("regen_skip_threshold_mm", 10.0)
+        idx = target_date_offset - 1
+        if idx < len(forecast):
+            return forecast[idx].precip_sum >= threshold
+        return False
+
     def _compute_next_start_semi(
         self, zone_id: str, zone_cfg: dict, zone_storage: dict
     ) -> datetime | None:
@@ -720,6 +743,14 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             check_date = today + timedelta(days=i)
             weekday_name = weekday_names[check_date.weekday()]
             if weekdays_enabled.get(weekday_name, True):
+                # Check rain forecast for this day (only days 1 and 2)
+                if i <= 2 and self._should_skip_for_rain(i):
+                    _LOGGER.info(
+                        "Zone %s: semi-mode skip day %d, rain forecast >= threshold",
+                        zone_id,
+                        i,
+                    )
+                    continue  # Skip this day, find next
                 return datetime.combine(check_date, start_time, tzinfo=UTC)
         return None
 
@@ -734,7 +765,22 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         )
 
         if needs_watering(nfk_aktuell, nfk_max, schwellwert_pct):
-            # Start immediately
+            # Watering needed — check rain forecast
+            if self._should_skip_for_rain(1):
+                _LOGGER.info(
+                    "Zone %s: skip today, rain forecast >= threshold", zone_id
+                )
+                if self._should_skip_for_rain(2):
+                    _LOGGER.info(
+                        "Zone %s: skip tomorrow too, rain forecast >= threshold", zone_id
+                    )
+                    return None  # Recheck after 2 days
+                # Start day-after-tomorrow
+                start_time = self._zone_times.get(zone_id, {}).get("start", dtime(19, 0))
+                return datetime.combine(
+                    date.today() + timedelta(days=2), start_time, tzinfo=UTC
+                )
+            # No rain expected, start immediately
             return datetime.now(UTC) + timedelta(minutes=1)
         return None
 
