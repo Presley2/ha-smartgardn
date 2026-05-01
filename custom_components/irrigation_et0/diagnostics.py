@@ -88,9 +88,14 @@ async def async_get_config_entry_diagnostics(
 
     # Current sensor values at export time
     sensor_values = {}
+    # Support both new single sensors and legacy min/max pairs
     for key, entity_id in [
+        ("temp", entry.data.get("temp_entity")),
         ("temp_min", entry.data.get("temp_min_entity")),
         ("temp_max", entry.data.get("temp_max_entity")),
+        ("humidity", entry.data.get("humidity_entity")),
+        ("humidity_min", entry.data.get("humidity_min_entity")),
+        ("humidity_max", entry.data.get("humidity_max_entity")),
     ]:
         if entity_id:
             state = hass.states.get(entity_id)

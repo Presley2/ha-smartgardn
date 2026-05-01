@@ -20,6 +20,7 @@ from homeassistant.helpers.event import (
     async_track_time_interval,
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.components.recorder import get_instance
 
 from custom_components.irrigation_et0.const import (
     DOMAIN,
@@ -207,14 +208,79 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             self._storage_data["zones"][zone_id]["scheduling"]["running_since"] = None
             await self.storage.async_save_immediate(self._storage_data)
 
+    async def _get_daily_minmax(
+        self, entity_id: str | None, start_time: datetime | None = None
+    ) -> tuple[float | None, float | None]:
+        """Read min/max values from HA history for a sensor.
+
+        Args:
+            entity_id: The sensor entity ID
+            start_time: Start of window (default: today 00:00)
+
+        Returns:
+            (min_value, max_value) or (None, None) if no data available
+        """
+        if not entity_id:
+            return None, None
+
+        if start_time is None:
+            start_time = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        try:
+            recorder = get_instance(self.hass)
+            if not recorder or not recorder.async_block_till_done:
+                _LOGGER.warning("Recorder not available for %s", entity_id)
+                return None, None
+
+            # Query HA history for sensor state changes in the window
+            history = await recorder.async_add_executor_job(
+                lambda: recorder.history.get_significant_states(
+                    self.hass,
+                    start_time,
+                    entity_ids=[entity_id],
+                    significant_changes_only=False,
+                )
+            )
+
+            if not history or entity_id not in history:
+                _LOGGER.debug("No history data for %s", entity_id)
+                return None, None
+
+            states = history[entity_id]
+            values = []
+            for state_obj in states:
+                try:
+                    val = float(state_obj.state)
+                    if val is not None:
+                        values.append(val)
+                except (ValueError, TypeError):
+                    pass
+
+            if not values:
+                _LOGGER.debug("No numeric values in history for %s", entity_id)
+                return None, None
+
+            return min(values), max(values)
+
+        except Exception as err:
+            _LOGGER.error("Error reading history for %s: %s", entity_id, err)
+            return None, None
+
     async def _compute_et0_with_fallback(self) -> tuple[float, str, bool]:
         """Phase 5.3: Compute ET0 with fallback chain.
 
         Returns (et0, method_used, fallback_active).
         """
         today = date.today()
-        t_min = self._read_sensor(self.entry.data.get("temp_min_entity"))
-        t_max = self._read_sensor(self.entry.data.get("temp_max_entity"))
+
+        # If new single temp_entity is configured, get min/max from history
+        temp_entity = self.entry.data.get("temp_entity")
+        if temp_entity:
+            t_min, t_max = await self._get_daily_minmax(temp_entity)
+        else:
+            # Fallback to old min/max entities for backwards compatibility
+            t_min = self._read_sensor(self.entry.data.get("temp_min_entity"))
+            t_max = self._read_sensor(self.entry.data.get("temp_max_entity"))
 
         if not t_min or not t_max:
             _LOGGER.error("No temperature data, using last known or 0")
@@ -226,8 +292,14 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
 
         # Try primary method (FAO56)
         if et_method == "fao56":
-            rh_min = self._read_sensor(self.entry.data.get("humidity_min_entity"))
-            rh_max = self._read_sensor(self.entry.data.get("humidity_max_entity"))
+            # Similarly, get humidity min/max from history if single entity is configured
+            humidity_entity = self.entry.data.get("humidity_entity")
+            if humidity_entity:
+                rh_min, rh_max = await self._get_daily_minmax(humidity_entity)
+            else:
+                rh_min = self._read_sensor(self.entry.data.get("humidity_min_entity"))
+                rh_max = self._read_sensor(self.entry.data.get("humidity_max_entity"))
+
             solar = self._read_sensor(self.entry.data.get("solar_entity"))
             wind = self._read_sensor(self.entry.data.get("wind_entity"))
 
@@ -341,11 +413,14 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         data = self.entry.data
         trafo_state = self.hass.states.get(data.get("trafo_entity", ""))
         frost_threshold = data.get("frost_threshold", 4.0)
-        temp_min_state = self.hass.states.get(data.get("temp_min_entity", ""))
+
+        # Check frost using current temp_entity or fallback to temp_min_entity
+        temp_entity = data.get("temp_entity") or data.get("temp_min_entity")
+        temp_state = self.hass.states.get(temp_entity or "")
         frost_active = False
-        if temp_min_state and temp_min_state.state not in ("unknown", "unavailable"):
+        if temp_state and temp_state.state not in ("unknown", "unavailable"):
             with contextlib.suppress(ValueError):
-                frost_active = float(temp_min_state.state) < frost_threshold
+                frost_active = float(temp_state.state) < frost_threshold
 
         return {
             "frost_active": frost_active,
@@ -467,7 +542,12 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         et0, et_method, et_fallback_active = await self._compute_et0_with_fallback()
 
         # Compute Ka (temperature correction factor)
-        t_max = self._read_sensor(data.get("temp_max_entity"))
+        # Get t_max from new single temp_entity or fallback to old temp_max_entity
+        temp_entity = data.get("temp_entity")
+        if temp_entity:
+            _, t_max = await self._get_daily_minmax(temp_entity)
+        else:
+            t_max = self._read_sensor(data.get("temp_max_entity"))
         ka = calc_ka(t_max if t_max else 20.0)
 
         # Step 2: For each zone, compute ETc and NFK balance

@@ -42,8 +42,7 @@ STEP_USER_SCHEMA = vol.Schema(
 )
 
 _OPTIONAL_WEATHER_FIELDS = (
-    "humidity_min_entity",
-    "humidity_max_entity",
+    "humidity_entity",
     "solar_entity",
     "wind_entity",
     "rain_entity",
@@ -51,10 +50,8 @@ _OPTIONAL_WEATHER_FIELDS = (
 
 STEP_WEATHER_SCHEMA = vol.Schema(
     {
-        vol.Required("temp_min_entity"): _ENTITY_SENSOR,
-        vol.Required("temp_max_entity"): _ENTITY_SENSOR,
-        vol.Optional("humidity_min_entity"): _ENTITY_SENSOR,
-        vol.Optional("humidity_max_entity"): _ENTITY_SENSOR,
+        vol.Required("temp_entity"): _ENTITY_SENSOR,
+        vol.Optional("humidity_entity"): _ENTITY_SENSOR,
         vol.Optional("solar_entity"): _ENTITY_SENSOR,
         vol.Optional("wind_entity"): _ENTITY_SENSOR,
         vol.Optional("rain_entity"): _ENTITY_SENSOR,
@@ -116,10 +113,8 @@ def _build_entry_data(
         "latitude": latitude,
         "longitude": longitude,
         "elevation": elevation,
-        "temp_min_entity": weather.get("temp_min_entity"),
-        "temp_max_entity": weather.get("temp_max_entity"),
-        "humidity_min_entity": weather.get("humidity_min_entity"),
-        "humidity_max_entity": weather.get("humidity_max_entity"),
+        "temp_entity": weather.get("temp_entity"),
+        "humidity_entity": weather.get("humidity_entity"),
         "solar_entity": weather.get("solar_entity"),
         "wind_entity": weather.get("wind_entity"),
         "rain_entity": weather.get("rain_entity"),
@@ -183,10 +178,8 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self._weather = {
-                "temp_min_entity": user_input.get("temp_min_entity"),
-                "temp_max_entity": user_input.get("temp_max_entity"),
-                "humidity_min_entity": user_input.get("humidity_min_entity"),
-                "humidity_max_entity": user_input.get("humidity_max_entity"),
+                "temp_entity": user_input.get("temp_entity"),
+                "humidity_entity": user_input.get("humidity_entity"),
                 "solar_entity": user_input.get("solar_entity"),
                 "wind_entity": user_input.get("wind_entity"),
                 "rain_entity": user_input.get("rain_entity"),

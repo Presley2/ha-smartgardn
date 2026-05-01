@@ -83,11 +83,13 @@ async def async_check_and_create_issues(hass: HomeAssistant, entry: ConfigEntry)
         return
 
     # Check if required weather sensors are configured
+    # Support both new single sensors and legacy min/max pairs
     missing_sensors = []
-    if not entry.data.get("temp_min_entity"):
-        missing_sensors.append("Temperature Min")
-    if not entry.data.get("temp_max_entity"):
-        missing_sensors.append("Temperature Max")
+    temp_configured = entry.data.get("temp_entity") or (
+        entry.data.get("temp_min_entity") and entry.data.get("temp_max_entity")
+    )
+    if not temp_configured:
+        missing_sensors.append("Temperature Sensor")
 
     # Check if configured zone valves are available
     for _zone_id, zone_cfg in entry.data.get("zones", {}).items():
