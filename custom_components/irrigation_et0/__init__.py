@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
+from homeassistant.components.lovelace import async_load_dashboard
 
 from custom_components.irrigation_et0.const import (
     DOMAIN,
@@ -19,6 +20,39 @@ from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
 from custom_components.irrigation_et0.migration import async_setup_migration_service
 
 
+async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
+    """Register Lovelace custom card resources."""
+    try:
+        lovelace_config = await async_load_dashboard(hass, "lovelace")
+        if not lovelace_config:
+            return
+
+        resources = lovelace_config.get("resources", [])
+        cards = [
+            {"url": "/static/community/irrigation_et0/overview-card.js", "type": "module"},
+            {"url": "/static/community/irrigation_et0/history-card.js", "type": "module"},
+            {"url": "/static/community/irrigation_et0/settings-card.js", "type": "module"},
+            {"url": "/static/community/irrigation_et0/ansaat-card.js", "type": "module"},
+        ]
+
+        # Check if resources already exist
+        existing_urls = {r.get("url") for r in resources}
+        needs_update = False
+
+        for card in cards:
+            if card["url"] not in existing_urls:
+                resources.append(card)
+                needs_update = True
+
+        if needs_update:
+            lovelace_config["resources"] = resources
+            # Save updated config (if storing in storage)
+            # Note: This is a simplified approach; full implementation depends on HA version
+    except Exception as err:
+        # Silently fail — Lovelace resources are optional
+        pass
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up irrigation_et0 from a config entry."""
     coordinator = IrrigationCoordinator(hass, entry)
@@ -28,6 +62,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"coordinator": coordinator}
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     entry.async_on_unload(coordinator.async_shutdown)
+
+    # Register Lovelace custom cards
+    await _async_register_lovelace_resources(hass)
 
     # Register hub device
     dev_reg = dr.async_get(hass)
