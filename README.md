@@ -212,6 +212,7 @@ python -m pytest tests/ --cov=custom_components/smartgardn_et0
 - [CHANGELOG](CHANGELOG.md) — release history
 - [Deployment Guide](docs/DEPLOYMENT.md) — SMB deployment for HA on Hetzner
 - [Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md) — technical details
+- [Third-Party Licenses](THIRD_PARTY_LICENSES.md) — vendor attribution and license compliance
 
 ---
 
@@ -226,6 +227,10 @@ Found a bug? Have a feature request?
 ## 📄 License
 
 MIT License — [Full Text](LICENSE)
+
+### Third-Party Attribution
+
+This project uses [PyETo](https://github.com/woodcrafty/PyETo) (BSD 3-Clause License) for FAO-56 Penman-Monteith ET₀ calculations. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for complete license information and compatibility details.
 
 ---
 
