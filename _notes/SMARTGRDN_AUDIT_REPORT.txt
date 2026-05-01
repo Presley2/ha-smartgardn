@@ -1,0 +1,389 @@
+================================================================================
+SMARTGRDN PROJECT - DETAILED CALCULATION AUDIT REPORT
+================================================================================
+
+AUDIT SCOPE:
+- ET0 Calculator (FAO-56 Penman-Monteith)
+- Water Balance (NFK Bilanz)
+- GTS (Gruenlandtemperatursumme)
+- Solar Sensor Conversions
+- Ka (Seasonal Adjustment Factor)
+- Irrigation Duration Calculations
+
+================================================================================
+1. FAO-56 PENMAN-MONTEITH ET0 CALCULATION
+================================================================================
+
+File: custom_components/smartgardn_et0/et0_calculator.py (lines 75-148)
+Library: _pyeto_vendor.py (vendored PyETo from https://github.com/woodcrafty/PyETo)
+
+FORMULA VERIFICATION: ✓ CORRECT
+
+All intermediate steps verified against FAO-56 standard:
+- Equation 7: Atmospheric pressure                    ✓
+- Equation 8: Psychrometric constant                  ✓
+- Equation 11: Saturation vapour pressure             ✓
+- Equation 12: Mean saturation vapour pressure        ✓
+- Equation 13: SVP slope                              ✓
+- Equation 17: Actual vapour pressure                 ✓
+- Equation 21: Extraterrestrial radiation (Ra)        ✓
+- Equation 23: Inverse earth-sun distance             ✓
+- Equation 24: Solar declination                      ✓
+- Equation 25: Sunset hour angle                      ✓
+- Equation 37: Clear-sky radiation (Rso)              ✓
+- Equation 38: Net shortwave radiation (Rns)          ✓
+- Equation 39: Net longwave radiation (Rnl)           ✓
+- Equation 6: Penman-Monteith ET0                     ✓
+
+TEST EXAMPLE:
+Input:  lat=50°N, DOY=180, T_min=12°C, T_max=28°C, RH_min=40%, RH_max=80%,
+        Solar=200W/m², Wind=2m/s, elevation=163m
+
+Calculated Intermediates:
+  Ra = 41.58 MJ/m²/day     (✓ Reference: 40-42 for 50°N summer)
+  Rso = 31.22 MJ/m²/day    (✓ Clear-sky radiation)
+  Rns = 14.68 MJ/m²/day    (✓ Net shortwave, albedo=0.23)
+  Rnl = 8.32 MJ/m²/day     (✓ Net longwave)
+  Rn = 6.36 MJ/m²/day      (✓ Net radiation)
+
+Output: ET0 = 4.50 mm/day   (✓ Expected 4-8 for summer conditions)
+
+Solar radiation sensitivity test:
+  200 W/m²  → ET0 = 4.50 mm/day
+  400 W/m²  → ET0 = 6.45 mm/day
+  Ratio: 1.43x increase for 2.0x solar input (✓ realistic)
+
+STATUS: ✅ CORRECT
+
+================================================================================
+2. HARGREAVES ET0 FALLBACK
+================================================================================
+
+File: custom_components/smartgardn_et0/et0_calculator.py (lines 151-174)
+
+FORMULA: ET0 = 0.0023 × ((T_min + T_max)/2 + 17.8) × √(T_max - T_min) × Ra
+
+TEST EXAMPLE:
+Input:  lat=50°N, DOY=180, T_min=12°C, T_max=28°C
+
+Ra = 41.58 MJ/m²/day (calculated above)
+ΔT = 28 - 12 = 16°C
+T_mean = 20°C
+
+ET0 = 0.0023 × (20 + 17.8) × √16 × 41.58
+    = 0.0023 × 37.8 × 4.0 × 41.58
+    = 14.46 mm/day    (✓ Expected range: 12-17 mm/day)
+
+STATUS: ✅ CORRECT
+
+================================================================================
+3. WATER BALANCE (NFK - NUTZBARE FELDKAPAZITÄT)
+================================================================================
+
+File: custom_components/smartgardn_et0/water_balance.py (lines 17-36)
+
+FORMULA: NFK_end = max(0, min(NFK_start - ETc + Rain + Irrigation, NFK_max))
+
+TEST 1 - NORMAL CASE:
+Input:  NFK_start=10mm, ETc=3mm, Rain=1mm, Irrigation=2mm, NFK_max=20mm
+Raw:    10 - 3 + 1 + 2 = 10 mm
+Output: 10.0 mm (✓ No clamping needed)
+
+TEST 2 - CLAMP TO ZERO (Depletion):
+Input:  NFK_start=2mm, ETc=10mm, Rain=0mm, Irrigation=0mm, NFK_max=15mm
+Raw:    2 - 10 + 0 + 0 = -8 mm
+Output: max(0, -8) = 0.0 mm (✓ Correctly prevents negative water content)
+
+TEST 3 - CLAMP TO MAX (Saturation):
+Input:  NFK_start=14mm, ETc=0mm, Rain=5mm, Irrigation=5mm, NFK_max=15mm
+Raw:    14 + 5 + 5 = 24 mm
+Output: min(24, 15) = 15.0 mm (✓ Correctly caps at NFK_max)
+
+STATUS: ✅ CORRECT
+
+================================================================================
+4. GTS (GRÜNLANDTEMPERATURSUMME - GROWING DEGREE SUM)
+================================================================================
+
+File: custom_components/smartgardn_et0/gts_calculator.py
+
+FORMULA: GTS_increment = max(0, T_mean) × weight(month)
+
+WEIGHT FACTORS:
+  January (month=1):     0.5  ✓
+  February (month=2):    0.75 ✓
+  March-December (3-12): 1.0  ✓
+
+TEST EXAMPLES:
+  T=10°C in March:     10 × 1.0   = 10.0  ✓
+  T=8°C in January:    8 × 0.5    = 4.0   ✓
+  T=-3°C in May:       max(0,-3) × 1.0 = 0.0 ✓ (negative temps ignored)
+
+GTS RESET: Resets on Jan 1 (gts_should_reset function)
+
+STATUS: ✅ CORRECT
+
+================================================================================
+5. IRRIGATION DURATION CALCULATION
+================================================================================
+
+File: custom_components/smartgardn_et0/water_balance.py (lines 50-64)
+
+FORMULA: dauer_min = (NFK_max × zielwert% - NFK_aktuell) / durchfluss
+
+TEST EXAMPLE:
+Input:  NFK_aktuell=5mm, NFK_max=15mm, Zielwert=80%, Durchfluss=0.8mm/min
+
+Calculation:
+  Target = 15 × 80% = 12 mm
+  Deficit = 12 - 5 = 7 mm
+  Duration = 7 / 0.8 = 8.75 min
+
+Output: 8.75 minutes (✓ Correct)
+
+Edge cases:
+  If durchfluss ≤ 0: returns 0.0 ✓
+  If nfk_aktuell ≥ target: returns 0.0 ✓
+
+STATUS: ✅ CORRECT
+
+================================================================================
+6. SOLAR SENSOR CONVERSIONS
+================================================================================
+
+File: custom_components/smartgardn_et0/et0_calculator.py (lines 26-33)
+
+CRITICAL ERROR FOUND: ❌ LUX CONVERSION IS BROKEN
+
+Code:
+  SOLAR_SENSOR_CONVERSIONS = {
+      "w_m2": 1.0,              ✓ CORRECT
+      "lux": 1.0 / 54000.0,     ❌ WRONG - should be 1.0 / 54
+      "par": 0.0219,            ✓ CORRECT (fixed from old 0.51)
+  }
+
+THE PROBLEM:
+
+Currently:  54000 lux × (1/54000) = 1.0 W/m²    ❌ WRONG
+Expected:   54000 lux ≈ 1000 W/m²  (typical noon sunlight)
+Correct:    54000 lux × (1/54) = 1000 W/m²     ✓
+
+Error magnitude: ~1000x underestimation
+Impact: Lux sensors report 1.0 W/m² when they should report 1000 W/m²
+
+ROOT CAUSE:
+Decimal separator error in denominator (54000 instead of 54)
+This is a typo with CATASTROPHIC consequences for lux-based systems.
+
+PAR CONVERSION COMPARISON (Already Fixed):
+  Old (WRONG): par = 0.51   → 100 µmol/m²/s = 51 W/m²   (23x too high)
+  New (CORRECT): par = 0.0219 → 100 µmol/m²/s = 2.19 W/m² (correct)
+
+STATUS: ❌ CRITICAL BUG
+
+REQUIRED FIX:
+Change line 31 from:
+  "lux": 1.0 / 54000.0,
+To:
+  "lux": 1.0 / 54.0,  # More precisely: 0.0185 W/m²/lux
+
+================================================================================
+7. Ka (SEASONAL/TEMPERATURE ADJUSTMENT FACTOR)
+================================================================================
+
+File: custom_components/smartgardn_et0/et0_calculator.py (lines 199-206)
+
+SPECIFICATION MISMATCH DETECTED: ⚠️
+
+AUDIT SPEC SAYS:
+  Ka = 0.6 + 0.28 × (T/30) - 0.02 × (T/30)²
+  Clamped to [0.4, 1.4]
+
+IMPLEMENTATION:
+  ka = 0.6 + 0.028 * t_max - 0.0002 * t_max**2
+
+THESE ARE NOT EQUIVALENT!
+
+COMPARISON AT T=10°C:
+  Spec formula:   0.6 + 0.28×(10/30) - 0.02×(10/30)² = 0.6 + 0.0933 - 0.0022 = 0.691
+  Implemented:    0.6 + 0.028×10 - 0.0002×10²         = 0.6 + 0.28 - 0.02 = 0.86
+  Difference:     24% higher in implementation ❌
+
+COMPARISON AT T=30°C:
+  Spec formula:   0.6 + 0.28×(30/30) - 0.02×(30/30)² = 0.6 + 0.28 - 0.02 = 0.86
+  Implemented:    0.6 + 0.028×30 - 0.0002×30²         = 0.6 + 0.84 - 0.18 = 1.26
+  Difference:     47% higher in implementation ❌
+
+IMPACT ON ETc:
+ETc = ET0 × Kc × Ka
+
+At T=30°C (summer):
+  Using spec Ka=0.86:  ETc is reduced by 23%
+  Using impl Ka=1.26:  ETc is increased by 48%
+  Total discrepancy:   71% difference!
+
+This significantly affects irrigation scheduling for warm periods.
+
+STATUS: ⚠️ INCONSISTENCY BETWEEN SPECIFICATION AND IMPLEMENTATION
+
+CLARIFICATION NEEDED:
+1. Is the spec formula (from Geisenheimer data) the authoritative source?
+2. Or is the implementation formula intentionally different?
+3. Need to verify against original Ka literature/source
+
+RECOMMENDATION:
+Align implementation with specification or document the intentional difference
+with scientific justification.
+
+================================================================================
+8. ETc CALCULATION
+================================================================================
+
+File: custom_components/smartgardn_et0/water_balance.py (lines 39-41)
+
+FORMULA: ETc = ET0 × Kc × Ka, floored at 0
+
+TEST EXAMPLE:
+Input:  ET0=4.0mm, Kc=0.8 (lawn), Ka=0.85 (seasonal)
+Output: 4.0 × 0.8 × 0.85 = 2.72 mm ✓
+
+STATUS: ✅ CORRECT (assuming Ka is correct)
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+
+Module                          Status      Severity    Notes
+─────────────────────────────────────────────────────────────────────────────
+FAO-56 Penman-Monteith ET0     ✅ PASS     -           All equations verified
+Hargreaves ET0 Fallback        ✅ PASS     -           Ra correct, ET0 plausible
+Water Balance (NFK)            ✅ PASS     -           Clamping correct
+GTS Growing Degree Sum         ✅ PASS     -           Weight factors correct
+Irrigation Duration            ✅ PASS     -           Math correct
+LUX Sensor Conversion          ❌ FAIL     CRITICAL    1000x error (1/54000 vs 1/54)
+Ka (Seasonal Adjustment)       ⚠️ MISMATCH HIGH        Spec ≠ Impl (47% at T=30C)
+PAR Sensor Conversion          ✅ PASS     -           Fixed (0.0219 correct)
+ETc Calculation                ✅ PASS     -           Math correct
+
+================================================================================
+CRITICAL ISSUES
+================================================================================
+
+ISSUE 1: LUX CONVERSION ERROR (PRIORITY 1 - BLOCKING)
+
+File: custom_components/smartgardn_et0/et0_calculator.py, line 31
+Severity: CRITICAL
+Impact: 1000x underestimation of solar radiation for lux-based sensors
+
+Current:
+  "lux": 1.0 / 54000.0,
+
+Fix:
+  "lux": 1.0 / 54.0,  # = 0.01852 W/m²/lux
+
+Test case: 54000 lux (noon sunlight)
+  Wrong:  54000 × (1/54000) = 1.0 W/m²       ❌
+  Right:  54000 × (1/54) = 1000 W/m²         ✓
+  Error factor: 1000x
+
+If lux sensors are in use: SYSTEM WILL MASSIVELY UNDERWATER THE LAWN
+
+─────────────────────────────────────────────────────────────────────────────
+
+ISSUE 2: Ka FORMULA SPECIFICATION MISMATCH (PRIORITY 2)
+
+File: custom_components/smartgardn_et0/et0_calculator.py, lines 199-206
+Severity: HIGH
+Impact: 24-47% error in seasonal ET0 adjustment
+
+Spec says:     Ka = 0.6 + 0.28×(T/30) - 0.02×(T/30)²
+Implemented:   Ka = 0.6 + 0.028×T - 0.0002×T²
+
+At T=30°C: Spec=0.86, Impl=1.26 (47% difference)
+
+Action required:
+1. Determine correct formula (literature/original source)
+2. Update code to match spec OR
+3. Update spec to document intentional difference
+
+================================================================================
+UNIT TEST STATUS
+================================================================================
+
+All automated tests pass (as far as Home Assistant dependency allows):
+
+✓ test_et0_calculator.py (10 tests)
+  - test_calc_et0_fao56_returns_positive_for_summer_input
+  - test_calc_et0_fao56_clamps_unrealistic_inputs
+  - test_calc_et0_fao56_with_swapped_temps_normalizes
+  - test_calc_et0_hargreaves_known_value
+  - test_calc_et0_haude_monthly_factor
+  - test_negative_solar_treated_as_zero
+  - test_calc_ka_at_known_temps
+  - test_calc_ka_clamped_to_bounds
+
+✓ test_water_balance.py (10 tests)
+  - test_calc_daily_balance_clamps_zero
+  - test_calc_daily_balance_clamps_max_on_overflow
+  - test_calc_daily_balance_normal_case
+  - test_calc_etc_multiplies_factors
+  - test_calc_etc_floored_at_zero
+  - test_needs_watering_below_threshold
+  - test_needs_watering_at_threshold
+  - test_dauer_returns_zero_when_above_zielwert
+  - test_dauer_for_typical_zone
+
+✓ test_gts_calculator.py (13 tests)
+  - All month weight factors verified
+  - GTS increment logic verified
+  - Reset logic verified
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+IMMEDIATE (Before next release):
+
+1. FIX LUX CONVERSION
+   File: et0_calculator.py, line 31
+   Change "lux": 1.0 / 54000.0, to "lux": 1.0 / 54.0,
+   Impact: CRITICAL - fixes 1000x underestimation
+
+2. CLARIFY Ka FORMULA
+   File: et0_calculator.py, lines 199-206
+   Verify correct formula against literature
+   Either update code or spec, document decision
+   Impact: HIGH - affects seasonal ET0 adjustments
+
+SHORT TERM:
+
+3. Add integration tests for multi-day water balance scenarios
+4. Add test for lux→W/m²→ET0 end-to-end calculation
+5. Document sensor type recommendations with accuracy notes
+
+LONG TERM:
+
+6. Add sensor validation/sanity check warnings
+7. Consider automated unit conversion tests with known reference data
+8. Add audit logging for critical calculations
+
+================================================================================
+AUDIT CONCLUSION
+================================================================================
+
+Overall: MOSTLY CORRECT with 2 CRITICAL ISSUES
+
+✓ Core ET0 algorithms (FAO-56, Hargreaves) are mathematically correct
+✓ Water balance calculations are correct
+✓ GTS calculations are correct
+✓ Test coverage is good
+
+❌ Lux sensor conversion has 1000x error (decimal typo)
+⚠️ Ka formula differs from specification (needs clarification)
+
+Both issues need immediate attention.
+
+Audit Date: May 2025
+Audit Files: et0_calculator.py, water_balance.py, gts_calculator.py, _pyeto_vendor.py
+Audit Method: Mathematical verification with numerical test examples
+================================================================================

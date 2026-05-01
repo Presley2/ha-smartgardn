@@ -8,6 +8,7 @@ CARDS = {
     "history-card.js": "History: daily water balance trends per zone",
     "settings-card.js": "Settings: zone configuration with sliders and dropdowns",
     "ansaat-card.js": "Ansaat: seed watering mode with interval/duration/window config",
+    "custom-status-card.js": "Custom Status: your custom card",
 }
 
 
