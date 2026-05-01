@@ -150,7 +150,6 @@ All data in this chain is in the **public domain** with no attribution requireme
 3. FAO for the ET₀ calculation methodology
 
 ---
-
 ## Additional Notes
 
 - This project contains **no proprietary or commercial code**
