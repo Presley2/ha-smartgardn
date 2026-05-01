@@ -32,10 +32,19 @@ bash deploy-smb.sh
 2. **Settings → Devices & Services → Create Integration**
 3. Search for **"Irrigation ET₀"**
 4. Complete 4-step wizard:
-   - **Anlage**: Name, GPS, elevation
-   - **Wetter**: Select weather sensors
-   - **Hardware**: Trafo switch, frost threshold
-   - **Zones**: Add 1+ zones
+   - **Step 1 - Anlage**: 
+     - Name: e.g., "Garten Bad Nauheim"
+     - Location: Click map, select coordinates (no manual typing!)
+     - Elevation: Enter height in meters (175m for Bad Nauheim)
+   - **Step 2 - Wetter**: Select single weather sensors
+     - Temperatur: One sensor with current temperature
+     - Luftfeuchtigkeit: One sensor with current humidity (optional)
+     - Solarstrahlung, Wind, Regen: Optional
+   - **Step 3 - Hardware**: 
+     - Transformator: Select your trafo switch
+     - Frost-Schwelle: Default 4.0°C
+   - **Step 4 - Zonen**: Add 1+ irrigation zones
+     - Zone name, type (Wiese/Gemüse/Rasen), soil type, etc.
 
 ### Step 4: Get Token for Auto-Reload (Optional)
 
@@ -86,6 +95,24 @@ bash reload-integration.sh
 1. **Settings → Devices & Services → Irrigation ET₀**
 2. Check devices and entities show up
 3. **⚙️ → Reload** if needed (but shouldn't be!)
+
+### Add Lovelace Cards to Dashboard
+
+After first HA restart, custom cards auto-register. Add to dashboard:
+
+1. Dashboard → Edit (✏️)
+2. Add card with YAML:
+```yaml
+type: custom:irrigation-et0-overview-card
+title: Bewässerungs-Übersicht
+entity: sensor.irrigation_et0_nfk_zone_1
+```
+
+Available cards:
+- `irrigation-et0-overview-card` — Zone status grid
+- `irrigation-et0-history-card` — NFK water balance history
+- `irrigation-et0-settings-card` — Zone parameters (sliders)
+- `irrigation-et0-ansaat-card` — Seed watering config
 
 ---
 
