@@ -584,13 +584,27 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 }
             )
 
-        # Step 3: Compute GTS, check year reset
+        # Step 3: Compute GTS with average daily temperature
         globals_data = storage["globals"]
         if gts_should_reset(today, None):
             globals_data["gts"] = 0.0
             globals_data["gts_jahr"] = today.year
 
-        gts_inc = gts_increment(t_max if t_max else 0.0, today.month)
+        # Get t_min and t_max from history to compute average temperature
+        temp_entity = data.get("temp_entity")
+        if temp_entity:
+            t_min, t_max = await self._get_daily_minmax(temp_entity)
+        else:
+            t_min = self._read_sensor(data.get("temp_min_entity"))
+            t_max = self._read_sensor(data.get("temp_max_entity"))
+
+        # Calculate average temperature for GTS
+        if t_min is not None and t_max is not None:
+            t_mittel = (t_min + t_max) / 2.0
+        else:
+            t_mittel = t_max if t_max else 0.0  # Fallback to t_max if t_min unavailable
+
+        gts_inc = gts_increment(t_mittel, today.month)
         globals_data["gts"] += gts_inc
         globals_data["letzte_et0_berechnung"] = datetime.now(UTC).isoformat()
 
