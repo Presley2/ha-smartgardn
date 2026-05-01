@@ -58,7 +58,7 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff check custom_components/irrigation_et0/ --select=E,W,F,N
+          ruff check custom_components/smartgardn_et0/ --select=E,W,F,N
 
   manifest:
     runs-on: ubuntu-latest
@@ -69,9 +69,9 @@ jobs:
         run: |
           python3 -c "
           import json
-          with open('custom_components/irrigation_et0/manifest.json') as f:
+          with open('custom_components/smartgardn_et0/manifest.json') as f:
               manifest = json.load(f)
-          assert manifest['domain'] == 'irrigation_et0'
+          assert manifest['domain'] == 'smartgardn_et0'
           assert 'name' in manifest
           assert 'version' in manifest
           print('✓ manifest.json is valid')

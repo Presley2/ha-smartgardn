@@ -36,10 +36,10 @@ jobs:
           python3 -c "
           import json
           version = '${{ steps.version.outputs.version }}'
-          with open('custom_components/irrigation_et0/manifest.json') as f:
+          with open('custom_components/smartgardn_et0/manifest.json') as f:
               manifest = json.load(f)
           manifest['version'] = version
-          with open('custom_components/irrigation_et0/manifest.json', 'w') as f:
+          with open('custom_components/smartgardn_et0/manifest.json', 'w') as f:
               json.dump(manifest, f, indent=2)
           print(f'✓ Updated manifest to version {version}')
           "
@@ -47,8 +47,8 @@ jobs:
       - name: Build distribution
         run: |
           mkdir -p dist
-          cd custom_components/irrigation_et0
-          zip -r ../../dist/irrigation_et0.zip . -x "*.pyc" "__pycache__/*"
+          cd custom_components/smartgardn_et0
+          zip -r ../../dist/smartgardn_et0.zip . -x "*.pyc" "__pycache__/*"
           cd ../..
           echo "✓ Built distribution package"
 
@@ -60,16 +60,16 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           release_name: Release ${{ steps.version.outputs.version }}
           body: |
-            # Irrigation ET₀ v${{ steps.version.outputs.version }}
+            # SmartGardn ET₀ v${{ steps.version.outputs.version }}
 
-            This release includes all features for irrigation control based on FAO-56 ET₀ calculations.
+            This release includes all features for scientific irrigation control based on FAO-56 ET₀ calculations.
 
             ## Installation
 
             Via HACS:
             1. Open Home Assistant
             2. Go to HACS > Integrations
-            3. Search for "Irrigation ET₀"
+            3. Search for "SmartGardn ET₀"
             4. Install the integration
             5. Restart Home Assistant
 
@@ -90,6 +90,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/irrigation_et0.zip
-          asset_name: irrigation_et0-${{ steps.version.outputs.version }}.zip
+          asset_path: ./dist/smartgardn_et0.zip
+          asset_name: smartgardn_et0-${{ steps.version.outputs.version }}.zip
           asset_content_type: application/zip
