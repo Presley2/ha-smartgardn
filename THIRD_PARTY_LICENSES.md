@@ -49,13 +49,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## External Services (No Vendoring Required)
 
-### Deutsches Wetterdienst (DWD) MOSMIX-S Forecast
-- **Service:** brightksy.dev API (free wrapper around DWD MOSMIX-S)
+### Deutsches Wetterdienst (DWD) MOSMIX-S Forecast via brightsky.dev
+- **Service:** brightsky.dev REST API (free wrapper around DWD MOSMIX-S)
 - **Provider:** brightsky.dev (https://brightsky.dev/)
-- **License:** Open Data (German weather service public data)
+- **Source Data:** Deutscher Wetterdienst (DWD) — German national weather service
+- **Data License:** [CC0 1.0 Universal (Public Domain Dedication)](https://creativecommons.org/publicdomain/zero/1.0/)
 - **Usage:** Optional 3-day ET₀ and precipitation forecast for intelligent rain-skip irrigation scheduling
 - **API Key:** Not required
-- **Terms:** Free service, subject to brightksky.dev's API terms of use
+- **Rate Limiting:** Free service with fair-use limits (no explicit cap per docs)
+- **API Terms:** Subject to brightsky.dev's [Terms of Service](https://brightsky.dev/)
+- **Attribution:** Data from DWD MOSMIX model, aggregated by brightsky.dev
 
 ### Home Assistant Core
 - **License:** Apache License 2.0
@@ -126,12 +129,35 @@ If you discover a potential license issue or have questions about third-party us
 
 ---
 
+## Data Attribution
+
+### Weather Data Chain
+```
+DWD (Deutscher Wetterdienst)
+    ↓ MOSMIX-S forecast model
+    ↓ 
+brightsky.dev (free public API)
+    ↓ CC0 Public Domain data
+    ↓
+SmartGardn ET₀ (this integration)
+    → ET₀ calculation (FAO-56)
+    → Irrigation decision logic
+```
+
+All data in this chain is in the **public domain** with no attribution requirement, but we recognize and credit:
+1. DWD for the meteorological model and data
+2. brightsky.dev for the free API wrapper service
+3. FAO for the ET₀ calculation methodology
+
+---
+
 ## Additional Notes
 
 - This project contains **no proprietary or commercial code**
 - All vendored code is pure mathematical functions with no modifications
 - The integration is designed to be transparent about dependencies
 - Questions about licensing are welcome and encouraged
+- **No tracking, analytics, or telemetry** to external services beyond optional brightsky.dev weather API
 
 ---
 

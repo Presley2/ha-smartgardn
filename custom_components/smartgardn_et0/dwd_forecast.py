@@ -1,4 +1,10 @@
-"""DWD forecast module — fetch MOSMIX-S data via brightsky.dev and calculate ET₀."""
+"""DWD forecast module — fetch MOSMIX-S data via brightsky.dev and calculate ET₀.
+
+Weather data sourced from:
+- Deutscher Wetterdienst (DWD) MOSMIX-S model
+- brightsky.dev API (free wrapper, CC0 Public Domain)
+- See THIRD_PARTY_LICENSES.md for complete attribution and terms
+"""
 
 import asyncio
 import logging
