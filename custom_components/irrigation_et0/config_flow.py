@@ -286,7 +286,14 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
     """Options flow for runtime reconfiguration."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Show a minimal options form pre-populated with current data."""
+        """Show menu for different option types."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["general", "weather"],
+        )
+
+    async def async_step_general(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Options for general settings."""
         current = self.config_entry.data
 
         if user_input is not None:
@@ -306,4 +313,29 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="general", data_schema=schema)
+
+    async def async_step_weather(self, user_input: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Options for weather sensor configuration."""
+        current = self.config_entry.data
+
+        if user_input is not None:
+            updated = dict(current)
+            updated["temp_entity"] = user_input.get("temp_entity")
+            updated["humidity_entity"] = user_input.get("humidity_entity")
+            updated["solar_entity"] = user_input.get("solar_entity")
+            updated["wind_entity"] = user_input.get("wind_entity")
+            updated["rain_entity"] = user_input.get("rain_entity")
+            return self.async_create_entry(title="", data=updated)
+
+        schema = vol.Schema(
+            {
+                vol.Required("temp_entity", default=current.get("temp_entity", "")): _ENTITY_SENSOR,
+                vol.Optional("humidity_entity", default=current.get("humidity_entity", "")): _ENTITY_SENSOR,
+                vol.Optional("solar_entity", default=current.get("solar_entity", "")): _ENTITY_SENSOR,
+                vol.Optional("wind_entity", default=current.get("wind_entity", "")): _ENTITY_SENSOR,
+                vol.Optional("rain_entity", default=current.get("rain_entity", "")): _ENTITY_SENSOR,
+            }
+        )
+
+        return self.async_show_form(step_id="weather", data_schema=schema)
