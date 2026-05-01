@@ -10,5 +10,25 @@
   "dependencies": [],
   "requirements": [],
   "config_flow": true,
-  "repairs": "custom_components.smartgardn_et0.repairs"
+  "repairs": "custom_components.smartgardn_et0.repairs",
+  "lovelace": {
+    "resources": [
+      {
+        "url": "/smartgardn_et0_cards/overview-card.js",
+        "type": "module"
+      },
+      {
+        "url": "/smartgardn_et0_cards/history-card.js",
+        "type": "module"
+      },
+      {
+        "url": "/smartgardn_et0_cards/settings-card.js",
+        "type": "module"
+      },
+      {
+        "url": "/smartgardn_et0_cards/ansaat-card.js",
+        "type": "module"
+      }
+    ]
+  }
 }

@@ -5,6 +5,7 @@ Handles repair flows for missing entities, unavailable sensors, and other issues
 
 from __future__ import annotations
 
+import base64
 import logging
 from typing import Any
 
@@ -19,14 +20,35 @@ from custom_components.smartgardn_et0.const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+def _safe_encode_entity_id(entity_id: str) -> str:
+    """Safely encode entity_id to base64 for issue_id."""
+    return base64.urlsafe_b64encode(entity_id.encode()).decode().rstrip('=')
+
+
+def _safe_decode_entity_id(encoded: str) -> str:
+    """Safely decode entity_id from base64 in issue_id."""
+    padding = 4 - (len(encoded) % 4)
+    if padding != 4:
+        encoded = encoded + '=' * padding
+    try:
+        return base64.urlsafe_b64decode(encoded).decode()
+    except Exception:
+        _LOGGER.error("Failed to decode entity_id from %s", encoded)
+        return ""
+
+
 class MissingEntityRepairFlow(RepairsFlow):
     """Repair flow for missing entities."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Show description of missing entity issue."""
         issue_id = self.issue_id
-        # Extract entity from issue_id format: missing_entity_<entity_id_with_underscores>
-        entity_id = issue_id.split("_", 2)[2].replace("_", ".")
+        # Extract entity from issue_id format: missing_entity_<base64_encoded_entity_id>
+        if not issue_id.startswith("missing_entity_"):
+            entity_id = ""
+        else:
+            encoded = issue_id.replace("missing_entity_", "")
+            entity_id = _safe_decode_entity_id(encoded)
 
         return self.async_show_form(
             step_id="init",
@@ -44,8 +66,12 @@ class TrafoUnavailableRepairFlow(RepairsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Show trafo unavailability issue."""
         issue_id = self.issue_id
-        # Extract entity from issue_id format: trafo_unavailable_<entity_id_with_underscores>
-        entity_id = issue_id.split("_", 2)[2].replace("_", ".")
+        # Extract entity from issue_id format: trafo_unavailable_<base64_encoded_entity_id>
+        if not issue_id.startswith("trafo_unavailable_"):
+            entity_id = ""
+        else:
+            encoded = issue_id.replace("trafo_unavailable_", "")
+            entity_id = _safe_decode_entity_id(encoded)
 
         return self.async_show_form(
             step_id="init",
@@ -98,7 +124,8 @@ async def async_check_and_create_issues(hass: HomeAssistant, entry: ConfigEntry)
             state = hass.states.get(valve_id)
             if not state or state.state == "unavailable":
                 # Create issue for missing valve entity
-                issue_id = f"missing_entity_{valve_id.replace('.', '_')}"
+                encoded_id = _safe_encode_entity_id(valve_id)
+                issue_id = f"missing_entity_{encoded_id}"
                 ir.async_create_issue(
                     hass,
                     DOMAIN,
@@ -115,7 +142,8 @@ async def async_check_and_create_issues(hass: HomeAssistant, entry: ConfigEntry)
         state = hass.states.get(trafo_id)
         if not state or state.state == "unavailable":
             # Create issue for unavailable trafo
-            issue_id = f"trafo_unavailable_{trafo_id.replace('.', '_')}"
+            encoded_id = _safe_encode_entity_id(trafo_id)
+            issue_id = f"trafo_unavailable_{encoded_id}"
             ir.async_create_issue(
                 hass,
                 DOMAIN,

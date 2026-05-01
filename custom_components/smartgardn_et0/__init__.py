@@ -34,7 +34,7 @@ async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
     """Register static path and Lovelace resources."""
     # 1. Serve the www/ directory under /smartgardn_et0_cards
     www_path = Path(__file__).parent / "www"
-    if www_path.is_dir():
+    if www_path.is_dir() and hass.http:
         await hass.http.async_register_static_paths([
             StaticPathConfig(_URL_BASE, str(www_path), cache_headers=False)
         ])

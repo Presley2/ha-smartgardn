@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -11,6 +12,11 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.smartgardn_et0.const import DOMAIN
 
 
+def _safe_encode_entity_id(entity_id: str) -> str:
+    """Safely encode entity_id to base64 for issue_id."""
+    return base64.urlsafe_b64encode(entity_id.encode()).decode().rstrip('=')
+
+
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_missing_entity_repair_flow_init(hass: HomeAssistant) -> None:
     """Test MissingEntityRepairFlow shows correct description."""
@@ -18,14 +24,16 @@ async def test_missing_entity_repair_flow_init(hass: HomeAssistant) -> None:
 
     flow = MissingEntityRepairFlow()
     flow.hass = hass
-    flow.issue_id = "missing_entity_switch_valve_1"
+    entity_id = "switch.valve_1"
+    encoded = _safe_encode_entity_id(entity_id)
+    flow.issue_id = f"missing_entity_{encoded}"
 
     result = await flow.async_step_init()
 
     assert result["type"] == "form"
     assert result["step_id"] == "init"
     assert "entity" in result["description_placeholders"]
-    assert result["description_placeholders"]["entity"] == "switch.valve.1"
+    assert result["description_placeholders"]["entity"] == entity_id
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
@@ -50,14 +58,16 @@ async def test_trafo_unavailable_repair_flow_init(hass: HomeAssistant) -> None:
 
     flow = TrafoUnavailableRepairFlow()
     flow.hass = hass
-    flow.issue_id = "trafo_unavailable_switch_trafo"
+    entity_id = "switch.trafo"
+    encoded = _safe_encode_entity_id(entity_id)
+    flow.issue_id = f"trafo_unavailable_{encoded}"
 
     result = await flow.async_step_init()
 
     assert result["type"] == "form"
     assert result["step_id"] == "init"
     assert "entity" in result["description_placeholders"]
-    assert result["description_placeholders"]["entity"] == "switch.trafo"
+    assert result["description_placeholders"]["entity"] == entity_id
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
@@ -160,7 +170,9 @@ async def test_async_check_and_create_issues_missing_valve(hass: HomeAssistant) 
     # Check if issue was created
     issue_registry = ir.async_get(hass)
     # List all issues in the registry
-    issue = issue_registry.async_get_issue(DOMAIN, "missing_entity_switch_missing_valve")
+    entity_id = "switch.missing_valve"
+    encoded = _safe_encode_entity_id(entity_id)
+    issue = issue_registry.async_get_issue(DOMAIN, f"missing_entity_{encoded}")
 
     assert issue is not None
 
@@ -202,7 +214,9 @@ async def test_async_check_and_create_issues_missing_trafo(hass: HomeAssistant) 
 
     # Check if issue was created
     issue_registry = ir.async_get(hass)
-    issue = issue_registry.async_get_issue(DOMAIN, "trafo_unavailable_switch_missing_trafo")
+    entity_id = "switch.missing_trafo"
+    encoded = _safe_encode_entity_id(entity_id)
+    issue = issue_registry.async_get_issue(DOMAIN, f"trafo_unavailable_{encoded}")
 
     assert issue is not None
 
