@@ -6,8 +6,8 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irrigation_et0.const import DOMAIN
-from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
+from custom_components.smartgardn_et0.const import DOMAIN
+from custom_components.smartgardn_et0.coordinator import IrrigationCoordinator
 
 ZONE_ID = "zone-abc-123"
 ZONE_CFG = {
@@ -47,8 +47,8 @@ def mock_entry(hass: HomeAssistant) -> MockConfigEntry:
 async def coordinator(hass: HomeAssistant, mock_entry: MockConfigEntry) -> IrrigationCoordinator:
     from unittest.mock import patch
     coord = IrrigationCoordinator(hass, mock_entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
             await coord.async_setup()
     yield coord
     await coord.async_shutdown()
@@ -77,7 +77,7 @@ async def test_nfk_sensor_returns_storage_value(
     coordinator: IrrigationCoordinator,
     mock_entry: MockConfigEntry,
 ) -> None:
-    from custom_components.irrigation_et0.sensor import IrrigationNFKSensor
+    from custom_components.smartgardn_et0.sensor import IrrigationNFKSensor
 
     coordinator._storage_data["zones"][ZONE_ID] = _zone_data(9.5)
     coordinator.data = await coordinator._async_update_data()
@@ -93,7 +93,7 @@ async def test_nfk_prozent_calculates_correctly(
     coordinator: IrrigationCoordinator,
     mock_entry: MockConfigEntry,
 ) -> None:
-    from custom_components.irrigation_et0.sensor import IrrigationNFKProzentSensor
+    from custom_components.smartgardn_et0.sensor import IrrigationNFKProzentSensor
 
     coordinator._storage_data["zones"][ZONE_ID] = _zone_data(7.5)
     coordinator.data = await coordinator._async_update_data()
@@ -110,7 +110,7 @@ async def test_frost_binary_sensor_active_when_coordinator_says_frost(
     coordinator: IrrigationCoordinator,
     mock_entry: MockConfigEntry,
 ) -> None:
-    from custom_components.irrigation_et0.binary_sensor import IrrigationFrostWarnungSensor
+    from custom_components.smartgardn_et0.binary_sensor import IrrigationFrostWarnungSensor
 
     coordinator.data = {"frost_active": True, "trafo_state": "off", "storage": None}
     sensor = IrrigationFrostWarnungSensor(coordinator, "test_eid")
@@ -123,7 +123,7 @@ async def test_dry_run_switch_defaults_true(
     coordinator: IrrigationCoordinator,
     mock_entry: MockConfigEntry,
 ) -> None:
-    from custom_components.irrigation_et0.switch import IrrigationDryRunSwitch
+    from custom_components.smartgardn_et0.switch import IrrigationDryRunSwitch
 
     switch = IrrigationDryRunSwitch(coordinator, "test_eid")
     assert switch.is_on is True
@@ -135,7 +135,7 @@ async def test_zone_modus_select_default_aus(
     coordinator: IrrigationCoordinator,
     mock_entry: MockConfigEntry,
 ) -> None:
-    from custom_components.irrigation_et0.select import IrrigationZoneModusSelect
+    from custom_components.smartgardn_et0.select import IrrigationZoneModusSelect
 
     sel = IrrigationZoneModusSelect(coordinator, "test_eid", ZONE_ID)
     assert sel.current_option == "aus"
@@ -147,7 +147,7 @@ async def test_zone_number_schwellwert_initialized_from_config(
     coordinator: IrrigationCoordinator,
     mock_entry: MockConfigEntry,
 ) -> None:
-    from custom_components.irrigation_et0.number import IrrigationNumberEntity
+    from custom_components.smartgardn_et0.number import IrrigationNumberEntity
 
     number = IrrigationNumberEntity(
         coordinator, "test_eid", ZONE_ID, "schwellwert", 10, 90, 5, "%", 50.0

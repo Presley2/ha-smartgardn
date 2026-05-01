@@ -23,7 +23,7 @@ bash deploy-smb.sh
 ```
 🚀 Irrigation ET₀ SMB Deploy
 ✅ SMB path accessible
-✅ Integration copied to /private/tmp/ha_mount/custom_components/irrigation_et0
+✅ Integration copied to /private/tmp/ha_mount/custom_components/smartgardn_et0
 ```
 
 ### Step 3: Configure in HA (First Time Only)
@@ -69,8 +69,8 @@ export HA_URL="http://192.168.178.92:8123"
 ### Make Changes Locally
 
 ```bash
-# Edit custom_components/irrigation_et0/ (any file)
-vim custom_components/irrigation_et0/coordinator.py
+# Edit custom_components/smartgardn_et0/ (any file)
+vim custom_components/smartgardn_et0/coordinator.py
 ```
 
 ### Deploy to HA (No Restart!)
@@ -105,7 +105,7 @@ After first HA restart, custom cards auto-register. Add to dashboard:
 ```yaml
 type: custom:irrigation-et0-overview-card
 title: Bewässerungs-Übersicht
-entity: sensor.irrigation_et0_nfk_zone_1
+entity: sensor.smartgardn_et0_nfk_zone_1
 ```
 
 Available cards:
@@ -120,7 +120,7 @@ Available cards:
 
 ```bash
 # 1. Make code changes
-vim custom_components/irrigation_et0/coordinator.py
+vim custom_components/smartgardn_et0/coordinator.py
 
 # 2. Deploy
 bash deploy-smb.sh
@@ -177,8 +177,8 @@ If `bash reload-integration.sh` fails:
 
 | Item | Location |
 |------|----------|
-| **Source code** | `/Users/michael/irrigation-ha/custom_components/irrigation_et0/` |
-| **HA instance** | `/private/tmp/ha_mount/custom_components/irrigation_et0/` |
+| **Source code** | `/Users/michael/irrigation-ha/custom_components/smartgardn_et0/` |
+| **HA instance** | `/private/tmp/ha_mount/custom_components/smartgardn_et0/` |
 | **Deploy script** | `/Users/michael/irrigation-ha/deploy-smb.sh` |
 | **Reload script** | `/Users/michael/irrigation-ha/reload-integration.sh` |
 | **HA UI** | http://192.168.178.92:8123 |

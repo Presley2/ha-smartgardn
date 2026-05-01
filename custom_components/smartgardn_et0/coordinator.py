@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for irrigation_et0."""
+"""DataUpdateCoordinator for smartgardn_et0."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.components.recorder import get_instance
 
-from custom_components.irrigation_et0.const import (
+from custom_components.smartgardn_et0.const import (
     DOMAIN,
     MODE_FULL,
     MODE_OFF,
@@ -31,14 +31,14 @@ from custom_components.irrigation_et0.const import (
     TRAFO_DELAY_S,
     WEEKDAYS,
 )
-from custom_components.irrigation_et0.et0_calculator import (
+from custom_components.smartgardn_et0.et0_calculator import (
     calc_et0_fao56,
     calc_et0_hargreaves,
     calc_ka,
 )
-from custom_components.irrigation_et0.gts_calculator import gts_increment, gts_should_reset
-from custom_components.irrigation_et0.storage import IrrigationStorage, StorageData
-from custom_components.irrigation_et0.water_balance import (
+from custom_components.smartgardn_et0.gts_calculator import gts_increment, gts_should_reset
+from custom_components.smartgardn_et0.storage import IrrigationStorage, StorageData
+from custom_components.smartgardn_et0.water_balance import (
     calc_daily_balance,
     calc_etc,
     needs_watering,
@@ -59,7 +59,7 @@ class QueueItem:
 
 
 class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-arg]
-    """Manages state, scheduling, and sensor polling for irrigation_et0."""
+    """Manages state, scheduling, and sensor polling for smartgardn_et0."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         super().__init__(
@@ -112,7 +112,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         await self._startup_recovery()
 
         # Phase 7: Check and create repair issues
-        from custom_components.irrigation_et0.repairs import async_check_and_create_issues
+        from custom_components.smartgardn_et0.repairs import async_check_and_create_issues
         await async_check_and_create_issues(self.hass, self.entry)
 
         # Register daily 00:05 calculation
@@ -366,7 +366,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         else:
             if hasattr(self, "_trafo_unavailable_since"):
                 delattr(self, "_trafo_unavailable_since")
-                self.hass.bus.async_fire("irrigation_et0_trafo_recovered")
+                self.hass.bus.async_fire("smartgardn_et0_trafo_recovered")
 
     async def _catch_up_missed_days(self) -> None:
         """Phase 5.2: If last calc was >1 day ago, reconstruct weather from Recorder (placeholder).
@@ -500,7 +500,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             )
         else:
             # Fire zone_finished event
-            self.hass.bus.async_fire("irrigation_et0_zone_finished", {"zone_id": zone_id})
+            self.hass.bus.async_fire("smartgardn_et0_zone_finished", {"zone_id": zone_id})
             # Clean up unsub
             if zone_id in self._zone_done_unsub:
                 del self._zone_done_unsub[zone_id]
@@ -629,11 +629,11 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         self.data["et_fallback_active"] = et_fallback_active
 
         self.hass.bus.async_fire(
-            "irrigation_et0_calc_done", {"timestamp": datetime.now(UTC).isoformat()}
+            "smartgardn_et0_calc_done", {"timestamp": datetime.now(UTC).isoformat()}
         )
         if et_fallback_active:
             self.hass.bus.async_fire(
-                "irrigation_et0_fallback_active", {"method": et_method}
+                "smartgardn_et0_fallback_active", {"method": et_method}
             )
 
     def _read_sensor(self, entity_id: str | None) -> float | None:
@@ -744,11 +744,11 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 self.running = None
             # Clear queue
             self.queue.clear()
-            self.hass.bus.async_fire("irrigation_et0_frost_lock")
+            self.hass.bus.async_fire("smartgardn_et0_frost_lock")
         elif not frost_active and self._frost_active:
             _LOGGER.info("Frost lock released")
             self._frost_active = False
-            self.hass.bus.async_fire("irrigation_et0_frost_release")
+            self.hass.bus.async_fire("smartgardn_et0_frost_release")
 
     # ===== Phase 6: Services & Events =====
 
@@ -780,7 +780,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         await self.async_enqueue_start(zone_id, dauer_min, cs_zyklen, cs_pause)
         _LOGGER.info("Started zone %s for %.1f minutes", zone_id, dauer_min)
         self.hass.bus.async_fire(
-            "irrigation_et0_zone_started", {"zone_id": zone_id, "duration_min": dauer_min}
+            "smartgardn_et0_zone_started", {"zone_id": zone_id, "duration_min": dauer_min}
         )
 
     async def async_stop_zone(self, zone_entity_id: str) -> None:
@@ -803,7 +803,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             self.running = None
             _LOGGER.info("Stopped zone %s", zone_id)
             self.hass.bus.async_fire(
-                "irrigation_et0_zone_finished", {"zone_id": zone_id}
+                "smartgardn_et0_zone_finished", {"zone_id": zone_id}
             )
 
         # Also remove from queue if present
@@ -822,7 +822,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         # Clear queue
         self.queue.clear()
         _LOGGER.info("Stopped all zones")
-        self.hass.bus.async_fire("irrigation_et0_stop_all")
+        self.hass.bus.async_fire("smartgardn_et0_stop_all")
 
     def _extract_zone_id_from_entity(self, entity_id: str) -> str | None:
         """Extract zone_id from select.{entry_id}_{zone_id}_modus entity ID.

@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from custom_components.irrigation_et0.water_balance import (
+from custom_components.smartgardn_et0.water_balance import (
     calc_daily_balance,
     calc_etc,
     needs_watering,

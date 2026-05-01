@@ -9,8 +9,8 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irrigation_et0.const import DOMAIN
-from custom_components.irrigation_et0.coordinator import IrrigationCoordinator, QueueItem
+from custom_components.smartgardn_et0.const import DOMAIN
+from custom_components.smartgardn_et0.coordinator import IrrigationCoordinator, QueueItem
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
@@ -40,8 +40,8 @@ async def test_async_start_zone_enqueues_zone(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -57,7 +57,7 @@ async def test_async_start_zone_enqueues_zone(hass: HomeAssistant) -> None:
 
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_async_start_zone_fires_event(hass: HomeAssistant) -> None:
-    """Test that async_start_zone fires irrigation_et0_zone_started event."""
+    """Test that async_start_zone fires smartgardn_et0_zone_started event."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         entry_id="test_entry_id",
@@ -82,8 +82,8 @@ async def test_async_start_zone_fires_event(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -95,7 +95,7 @@ async def test_async_start_zone_fires_event(hass: HomeAssistant) -> None:
         def capture_event(event: Event) -> None:
             fired_events.append(event)
 
-        hass.bus.async_listen("irrigation_et0_zone_started", capture_event)
+        hass.bus.async_listen("smartgardn_et0_zone_started", capture_event)
 
         with patch.object(coordinator, "_run_next_in_queue", new_callable=AsyncMock):
             await coordinator.async_start_zone("select.test_entry_id_z1_modus", 30.0)
@@ -136,8 +136,8 @@ async def test_async_start_zone_respects_frost_lock(hass: HomeAssistant) -> None
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -179,8 +179,8 @@ async def test_async_start_zone_invalid_entity_id(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -224,8 +224,8 @@ async def test_async_stop_zone_stops_running_zone(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -273,8 +273,8 @@ async def test_async_stop_zone_removes_from_queue(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -294,7 +294,7 @@ async def test_async_stop_zone_removes_from_queue(hass: HomeAssistant) -> None:
 
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_async_stop_zone_fires_event(hass: HomeAssistant) -> None:
-    """Test that async_stop_zone fires irrigation_et0_zone_finished event."""
+    """Test that async_stop_zone fires smartgardn_et0_zone_finished event."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         entry_id="test_entry_id",
@@ -319,8 +319,8 @@ async def test_async_stop_zone_fires_event(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -334,7 +334,7 @@ async def test_async_stop_zone_fires_event(hass: HomeAssistant) -> None:
         def capture_event(event: Event) -> None:
             fired_events.append(event)
 
-        hass.bus.async_listen("irrigation_et0_zone_finished", capture_event)
+        hass.bus.async_listen("smartgardn_et0_zone_finished", capture_event)
 
         with patch.object(coordinator, "_valve_off_then_trafo_check", new_callable=AsyncMock):
             await coordinator.async_stop_zone("select.test_entry_id_z1_modus")
@@ -379,8 +379,8 @@ async def test_async_stop_all_clears_queue_and_stops_running(hass: HomeAssistant
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -399,7 +399,7 @@ async def test_async_stop_all_clears_queue_and_stops_running(hass: HomeAssistant
 
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_async_stop_all_fires_event(hass: HomeAssistant) -> None:
-    """Test that async_stop_all fires irrigation_et0_stop_all event."""
+    """Test that async_stop_all fires smartgardn_et0_stop_all event."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         entry_id="test_entry_id",
@@ -424,8 +424,8 @@ async def test_async_stop_all_fires_event(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"), patch(
-        "custom_components.irrigation_et0.coordinator.async_track_time_interval"
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"), patch(
+        "custom_components.smartgardn_et0.coordinator.async_track_time_interval"
     ):
         await coordinator.async_setup()
 
@@ -439,7 +439,7 @@ async def test_async_stop_all_fires_event(hass: HomeAssistant) -> None:
         def capture_event(event: Event) -> None:
             fired_events.append(event)
 
-        hass.bus.async_listen("irrigation_et0_stop_all", capture_event)
+        hass.bus.async_listen("smartgardn_et0_stop_all", capture_event)
 
         with patch.object(coordinator, "_valve_off_then_trafo_check", new_callable=AsyncMock):
             await coordinator.async_stop_all()

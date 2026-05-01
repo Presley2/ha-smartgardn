@@ -1,4 +1,4 @@
-"""Lovelace card integration for irrigation_et0."""
+"""Lovelace card integration for smartgardn_et0."""
 
 from pathlib import Path
 import json

@@ -9,8 +9,8 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irrigation_et0.const import DOMAIN
-from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
+from custom_components.smartgardn_et0.const import DOMAIN
+from custom_components.smartgardn_et0.coordinator import IrrigationCoordinator
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
@@ -141,7 +141,7 @@ async def test_startup_recovery_resumes_zone_in_progress(hass: HomeAssistant) ->
     hass.states.async_set("switch.mv1", "on")
 
     with patch(
-        "custom_components.irrigation_et0.coordinator.async_track_point_in_time"
+        "custom_components.smartgardn_et0.coordinator.async_track_point_in_time"
     ) as mock_track:
         await coordinator._startup_recovery()
         # Should have scheduled a timer for remaining time (~20 min)

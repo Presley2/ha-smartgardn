@@ -1,4 +1,4 @@
-# irrigation_et0
+# smartgardn_et0
 
 Smart irrigation scheduling for Home Assistant using reference evapotranspiration (ET₀ / FAO-56 Penman-Monteith).
 

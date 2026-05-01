@@ -1,4 +1,4 @@
-"""irrigation_et0 — FAO-56 ET₀-based irrigation control."""
+"""smartgardn_et0 — FAO-56 ET₀-based irrigation control."""
 
 from __future__ import annotations
 
@@ -11,15 +11,15 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.components.http import StaticPathConfig
 
-from custom_components.irrigation_et0.const import (
+from custom_components.smartgardn_et0.const import (
     DOMAIN,
     PLATFORMS,
     SERVICE_START_ZONE,
     SERVICE_STOP_ALL,
     SERVICE_STOP_ZONE,
 )
-from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
-from custom_components.irrigation_et0.migration import async_setup_migration_service
+from custom_components.smartgardn_et0.coordinator import IrrigationCoordinator
+from custom_components.smartgardn_et0.migration import async_setup_migration_service
 
 _LOVELACE_CARDS = [
     "overview-card.js",
@@ -27,12 +27,12 @@ _LOVELACE_CARDS = [
     "settings-card.js",
     "ansaat-card.js",
 ]
-_URL_BASE = "/irrigation_et0_cards"
+_URL_BASE = "/smartgardn_et0_cards"
 
 
 async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
     """Register static path and Lovelace resources."""
-    # 1. Serve the www/ directory under /irrigation_et0_cards
+    # 1. Serve the www/ directory under /smartgardn_et0_cards
     www_path = Path(__file__).parent / "www"
     if www_path.is_dir():
         await hass.http.async_register_static_paths([
@@ -76,7 +76,7 @@ async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up irrigation_et0 from a config entry."""
+    """Set up smartgardn_et0 from a config entry."""
     coordinator = IrrigationCoordinator(hass, entry)
     await coordinator.async_setup()
     await coordinator.async_config_entry_first_refresh()
@@ -94,7 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, entry.entry_id)},
         name=f"Bewässerung {entry.data.get('name', '')}",
-        manufacturer="irrigation_et0",
+        manufacturer="smartgardn_et0",
         model="FAO-56",
     )
 
@@ -104,7 +104,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{zone_id}")},
             name=f"Zone {zone_data['zone_name']}",
-            manufacturer="irrigation_et0",
+            manufacturer="smartgardn_et0",
             model="Irrigation Zone",
             via_device=(DOMAIN, entry.entry_id),
         )

@@ -1,4 +1,4 @@
-# irrigation_et0 — Design Spec
+# smartgardn_et0 — Design Spec
 **Datum:** 2026-04-29 (v2 — erweitert um Hot-Reload, HACS, Tests, Reliability)  
 **Status:** Final — zur Implementierung freigegeben
 
@@ -6,7 +6,7 @@
 
 ## 1. Ziel
 
-Eine native Home Assistant Custom Component (`irrigation_et0`) zur wissenschaftlich fundierten Bewässerungssteuerung auf Basis des FAO-56 Penman-Monteith-Modells mit täglicher Bodenwasserbilanz (NFK) pro Zone. Ablösung der bisherigen Node-RED + InfluxDB Lösung. Vollständig unabhängig von externen Diensten.
+Eine native Home Assistant Custom Component (`smartgardn_et0`) zur wissenschaftlich fundierten Bewässerungssteuerung auf Basis des FAO-56 Penman-Monteith-Modells mit täglicher Bodenwasserbilanz (NFK) pro Zone. Ablösung der bisherigen Node-RED + InfluxDB Lösung. Vollständig unabhängig von externen Diensten.
 
 ---
 
@@ -16,7 +16,7 @@ Eine native Home Assistant Custom Component (`irrigation_et0`) zur wissenschaftl
 
 ```
 irrigation-ha/                              # Repo-Root (HACS)
-  custom_components/irrigation_et0/
+  custom_components/smartgardn_et0/
     __init__.py              # Setup, Config Entry, Services, Recovery
     config_flow.py           # UI-Erstkonfiguration + OptionsFlow (Laufzeit-Edit)
     coordinator.py           # DataUpdateCoordinator, Scheduling, Trafo-Sequenz, Queue
@@ -41,7 +41,7 @@ irrigation-ha/                              # Repo-Root (HACS)
     translations/
       de.json
       en.json
-  custom_components/irrigation_et0_card/   # Lovelace Custom Card
+  custom_components/smartgardn_et0_card/   # Lovelace Custom Card
     irrigation-et0-card.js
     irrigation-et0-card-editor.js
   tests/                                   # pytest-homeassistant-custom-component
@@ -92,7 +92,7 @@ Alle Sensor-/Switch-/Select-Entities sind `CoordinatorEntity` und teilen sich de
 ### 2.4 Device Registry
 
 Pro Anlage:
-- 1 Hub-Device `Bewässerung {anlage}` (Manufacturer "irrigation_et0", Model "FAO-56")
+- 1 Hub-Device `Bewässerung {anlage}` (Manufacturer "smartgardn_et0", Model "FAO-56")
 - N Zone-Devices `Zone {name}`, jeweils `via_device=Hub` — gruppiert alle Zone-Entities
 
 ### 2.5 unique_id-Strategie
@@ -365,7 +365,7 @@ async_track_time_change(hass, _daily_calc, hour=0, minute=5, second=0)
 #   und registriert _start_zone via async_track_point_in_time neu (Semi/Voll)
 # _daily_calc registriert für jede Ansaat-Zone den ersten _ansaat_tick des Tages
 #   (= ansaat_von-Uhrzeit heute, sofern modus==Ansaat und status==ON und kein Frost)
-# _daily_calc feuert am Ende: hass.bus.async_fire("irrigation_et0_calc_done",
+# _daily_calc feuert am Ende: hass.bus.async_fire("smartgardn_et0_calc_done",
 #   {"et0": ..., "methode": ..., "datum": today})
 
 # Startzeiten pro Zone — Semi/Voll (one-shot, nach Zonenende neu registriert)
@@ -502,7 +502,7 @@ In `__init__.async_setup_entry` nach Coordinator-Init:
 1. Trafo-State lesen. Wenn `unavailable`: Repair-Issue, alle automatischen Aktionen blockiert.
 2. Für jedes Zonen-Ventil: aktuellen State lesen.
    - `on` und Storage `running_since` gesetzt: berechne `verbleibend = dauer - (now - running_since)`. Wenn `verbleibend > 0`: Zone in Queue als laufend markieren, Timer fortsetzen. Wenn `verbleibend ≤ 0`: Ventil schließen, Trafo prüfen.
-   - `on` und kein `running_since` (HA-Crash, unbekannter Zustand): hart schließen + Log-Warning + Event `irrigation_et0_unexpected_state`.
+   - `on` und kein `running_since` (HA-Crash, unbekannter Zustand): hart schließen + Log-Warning + Event `smartgardn_et0_unexpected_state`.
    - `off`: nichts tun.
 3. Trafo-Failsafe nach Recovery aufrufen: alle Ventile zu, dann Trafo OFF.
 
@@ -607,7 +607,7 @@ Vorhandene `input_number`, `input_select`, `input_datetime`, `switch` und `senso
 ### 14.2 `manifest.json`
 ```json
 {
-  "domain": "irrigation_et0",
+  "domain": "smartgardn_et0",
   "name": "Irrigation ET₀",
   "version": "0.1.0",
   "documentation": "https://github.com/<user>/irrigation-ha",
@@ -653,7 +653,7 @@ start_zone:
       required: true
       selector:
         entity:
-          integration: irrigation_et0
+          integration: smartgardn_et0
           domain: select
     dauer_min:
       required: true
@@ -665,7 +665,7 @@ stop_zone:
     zone:
       required: true
       selector:
-        entity: { integration: irrigation_et0, domain: select }
+        entity: { integration: smartgardn_et0, domain: select }
 
 stop_all:
   name: Alle Zonen stoppen
@@ -682,7 +682,7 @@ set_nfk:
     zone:
       required: true
       selector:
-        entity: { integration: irrigation_et0, domain: select }
+        entity: { integration: smartgardn_et0, domain: select }
     value_mm:
       required: true
       selector: { number: { min: 0, max: 100, unit_of_measurement: mm } }
@@ -693,7 +693,7 @@ skip_next_run:
     zone:
       required: true
       selector:
-        entity: { integration: irrigation_et0, domain: select }
+        entity: { integration: smartgardn_et0, domain: select }
 
 import_node_red_state:
   name: NFK aus Node-RED importieren
@@ -707,25 +707,25 @@ Alle Services sind in `__init__.async_setup_entry` via `hass.services.async_regi
 ## 16. Event Bus (für Automatisierungen)
 
 ```python
-hass.bus.async_fire("irrigation_et0_zone_started",
+hass.bus.async_fire("smartgardn_et0_zone_started",
     {"zone_id": ..., "name": ..., "modus": ..., "dauer_min": ...})
 
-hass.bus.async_fire("irrigation_et0_zone_finished",
+hass.bus.async_fire("smartgardn_et0_zone_finished",
     {"zone_id": ..., "name": ..., "beregnet_mm": ..., "abgebrochen": False})
 
-hass.bus.async_fire("irrigation_et0_frost_lock",
+hass.bus.async_fire("smartgardn_et0_frost_lock",
     {"temperatur": ..., "schwelle": ...})
 
-hass.bus.async_fire("irrigation_et0_frost_release",
+hass.bus.async_fire("smartgardn_et0_frost_release",
     {"temperatur": ...})
 
-hass.bus.async_fire("irrigation_et0_calc_done",
+hass.bus.async_fire("smartgardn_et0_calc_done",
     {"et0": ..., "methode": ..., "datum": ...})
 
-hass.bus.async_fire("irrigation_et0_fallback_active",
+hass.bus.async_fire("smartgardn_et0_fallback_active",
     {"reason": "missing_pm_inputs", "fallback_method": "hargreaves"})
 
-hass.bus.async_fire("irrigation_et0_unexpected_state",
+hass.bus.async_fire("smartgardn_et0_unexpected_state",
     {"entity_id": ..., "expected": ..., "actual": ...})
 ```
 
@@ -742,7 +742,7 @@ Globaler Switch `switch.irrigation_dry_run`:
 - User schaltet bewusst OFF wenn er die Werte plausibel findet
 
 ### 17.2 NFK-manuelle-Korrektur
-- Service `irrigation_et0.set_nfk` (siehe §15)
+- Service `smartgardn_et0.set_nfk` (siehe §15)
 - Im UI: Karte 3 enthält pro Zone einen "NFK korrigieren"-Button → Dialog mit Slider + Speichern
 
 ### 17.3 Notifications (HA persistent_notification)
@@ -764,7 +764,7 @@ Karte 4 zeigt im Verlauf eine zusätzliche Linie "geplante Beregnung" wenn Dry-R
 Wenn Zone via Auto-Modus läuft und User drückt "Stop"-Button:
 - Aktuelle Bewässerung wird sauber gestoppt (Ventil OFF, Trafo OFF wenn keine andere Zone)
 - `next_start_dt` für heute wird auf "morgen" gesetzt (heute keine erneute Auslösung)
-- Event `irrigation_et0_zone_finished` mit `abgebrochen: True`
+- Event `smartgardn_et0_zone_finished` mit `abgebrochen: True`
 
 ---
 
@@ -811,11 +811,11 @@ Wenn Zone via Auto-Modus läuft und User drückt "Stop"-Button:
 
 ---
 
-## 19. Rollout-Plan (Node-RED → irrigation_et0)
+## 19. Rollout-Plan (Node-RED → smartgardn_et0)
 
 ### Phase 1: Lokale Entwicklung (Wochen 1–2)
 - Repo `irrigation-ha` mit Struktur aus §2.1 anlegen
-- Symlink `~/.homeassistant/custom_components/irrigation_et0` → `~/irrigation-ha/custom_components/irrigation_et0`
+- Symlink `~/.homeassistant/custom_components/smartgardn_et0` → `~/irrigation-ha/custom_components/smartgardn_et0`
 - Pytest-Suite + GitHub Actions einrichten
 - Coordinator + ET₀-Calculator + Water-Balance + Storage zuerst (ohne UI)
 
@@ -826,13 +826,13 @@ Wenn Zone via Auto-Modus läuft und User drückt "Stop"-Button:
 - Migrations-Service nutzt vorhandene `input_number.{zone}_bucket`-Werte als NFK-Startwerte
 
 ### Phase 3: Soft-Cutover (Woche 7)
-- Eine Zone (z.B. Tropfkreis 2) aus Node-RED entfernt, übernimmt irrigation_et0
+- Eine Zone (z.B. Tropfkreis 2) aus Node-RED entfernt, übernimmt smartgardn_et0
 - 1 Woche scharfes Monitoring dieser Zone
 - Bei Erfolg: weitere Zonen migriert
 - Alte Node-RED-Flows deaktivieren (nicht löschen) — schnelles Rollback möglich
 
 ### Phase 4: Vollbetrieb (Woche 8+)
-- Alle Zonen über irrigation_et0
+- Alle Zonen über smartgardn_et0
 - Dry-Run = OFF
 - Alte Helper-Entities bleiben 1 Saison parallel (Read-only-Vergleich), dann gelöscht
 

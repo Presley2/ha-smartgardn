@@ -2,7 +2,7 @@
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.irrigation_et0.storage import IrrigationStorage
+from custom_components.smartgardn_et0.storage import IrrigationStorage
 
 
 async def test_async_migrate_v1_returns_unchanged(hass: HomeAssistant) -> None:

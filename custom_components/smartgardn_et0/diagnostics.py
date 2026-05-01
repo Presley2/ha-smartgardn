@@ -1,4 +1,4 @@
-"""Diagnostics for irrigation_et0.
+"""Diagnostics for smartgardn_et0.
 
 Exports diagnostic data for HA's debug system with redacted sensitive information.
 """
@@ -11,7 +11,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from custom_components.irrigation_et0.const import DOMAIN
+from custom_components.smartgardn_et0.const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 

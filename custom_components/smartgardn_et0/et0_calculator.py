@@ -3,7 +3,7 @@
 import math
 from dataclasses import dataclass
 
-from custom_components.irrigation_et0._pyeto_vendor import (
+from custom_components.smartgardn_et0._pyeto_vendor import (
     atmos_pres,
     avp_from_rhmin_rhmax,
     cs_rad,
@@ -20,7 +20,7 @@ from custom_components.irrigation_et0._pyeto_vendor import (
     sunset_hour_angle,
     svp_from_t,
 )
-from custom_components.irrigation_et0.const import SENSOR_LIMITS
+from custom_components.smartgardn_et0.const import SENSOR_LIMITS
 
 # Unit conversion: W/m² × 0.0864 = MJ/m²/day
 W_M2_TO_MJ_M2_D = 0.0864

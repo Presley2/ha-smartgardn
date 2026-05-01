@@ -1,5 +1,5 @@
 """Tests for the et0_calculator module."""
-from custom_components.irrigation_et0.et0_calculator import (
+from custom_components.smartgardn_et0.et0_calculator import (
     calc_et0_fao56,
     calc_et0_hargreaves,
     calc_et0_haude,

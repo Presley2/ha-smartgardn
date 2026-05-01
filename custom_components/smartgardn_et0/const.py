@@ -1,19 +1,19 @@
-"""Constants for the irrigation_et0 integration."""
+"""Constants for the smartgardn_et0 integration."""
 
 # Domain & Storage
-DOMAIN = "irrigation_et0"
-STORAGE_KEY = "irrigation_et0"
+DOMAIN = "smartgardn_et0"
+STORAGE_KEY = "smartgardn_et0"
 STORAGE_VERSION = 1
 VERSION = "0.1.0"
 
 # Event names
-EVENT_ZONE_STARTED = "irrigation_et0_zone_started"
-EVENT_ZONE_FINISHED = "irrigation_et0_zone_finished"
-EVENT_FROST_LOCK = "irrigation_et0_frost_lock"
-EVENT_FROST_RELEASE = "irrigation_et0_frost_release"
-EVENT_CALC_DONE = "irrigation_et0_calc_done"
-EVENT_FALLBACK_ACTIVE = "irrigation_et0_fallback_active"
-EVENT_UNEXPECTED_STATE = "irrigation_et0_unexpected_state"
+EVENT_ZONE_STARTED = "smartgardn_et0_zone_started"
+EVENT_ZONE_FINISHED = "smartgardn_et0_zone_finished"
+EVENT_FROST_LOCK = "smartgardn_et0_frost_lock"
+EVENT_FROST_RELEASE = "smartgardn_et0_frost_release"
+EVENT_CALC_DONE = "smartgardn_et0_calc_done"
+EVENT_FALLBACK_ACTIVE = "smartgardn_et0_fallback_active"
+EVENT_UNEXPECTED_STATE = "smartgardn_et0_unexpected_state"
 
 # Service names
 SERVICE_START_ZONE = "start_zone"

@@ -2,7 +2,7 @@
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.irrigation_et0.storage import IrrigationStorage
+from custom_components.smartgardn_et0.storage import IrrigationStorage
 
 
 async def test_storage_returns_default_when_empty(hass: HomeAssistant) -> None:

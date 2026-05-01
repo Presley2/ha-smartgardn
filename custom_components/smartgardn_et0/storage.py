@@ -1,11 +1,11 @@
-"""Persistent storage for irrigation_et0 — schema v1."""
+"""Persistent storage for smartgardn_et0 — schema v1."""
 
 from typing import TypedDict
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-from custom_components.irrigation_et0.const import STORAGE_KEY, STORAGE_VERSION
+from custom_components.smartgardn_et0.const import STORAGE_KEY, STORAGE_VERSION
 
 VERLAUF_MAX_DAYS = 365
 

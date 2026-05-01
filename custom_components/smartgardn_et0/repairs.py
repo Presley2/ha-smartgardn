@@ -1,4 +1,4 @@
-"""Repair workflows for irrigation_et0.
+"""Repair workflows for smartgardn_et0.
 
 Handles repair flows for missing entities, unavailable sensors, and other issues.
 """
@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import issue_registry as ir
 
-from custom_components.irrigation_et0.const import DOMAIN
+from custom_components.smartgardn_et0.const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 

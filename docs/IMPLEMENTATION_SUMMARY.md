@@ -69,7 +69,7 @@ A comprehensive Home Assistant custom integration for scientific irrigation cont
 ### Phase 9: HACS & CI/CD (Commit a9f78f7)
 - ✅ GitHub Actions: tests.yml (pytest on push/PR, 3x Python versions)
 - ✅ GitHub Actions: release.yml (automated releases on version tags)
-- ✅ Node-RED migration service: converts legacy data to irrigation_et0 format
+- ✅ Node-RED migration service: converts legacy data to smartgardn_et0 format
 - ✅ Migration validation with comprehensive error reporting
 - ✅ Enhanced manifest: Lovelace card resource registration
 - ✅ Comprehensive README with features, install, config, troubleshooting, dev guide
@@ -120,7 +120,7 @@ A comprehensive Home Assistant custom integration for scientific irrigation cont
 ## File Structure
 
 ```
-custom_components/irrigation_et0/
+custom_components/smartgardn_et0/
 ├── __init__.py                    (Entry point, service registration)
 ├── manifest.json                  (Integration metadata + Lovelace resources)
 ├── config_flow.py                 (4-step config UI + options)

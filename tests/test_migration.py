@@ -1,6 +1,6 @@
 """Tests for Node-RED migration service."""
 import pytest
-from custom_components.irrigation_et0.migration import (
+from custom_components.smartgardn_et0.migration import (
     migrate_from_nodered,
     validate_migration,
 )

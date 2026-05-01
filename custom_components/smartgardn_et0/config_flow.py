@@ -1,4 +1,4 @@
-"""Config flow for irrigation_et0."""
+"""Config flow for smartgardn_et0."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from homeassistant.helpers.selector import (
     TextSelector,
 )
 
-from custom_components.irrigation_et0.const import DOMAIN, SOIL_TYPES, ZONE_TYPE_KC
+from custom_components.smartgardn_et0.const import DOMAIN, SOIL_TYPES, ZONE_TYPE_KC
 
 _ENTITY_SENSOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
 _ENTITY_SWITCH = EntitySelector(EntitySelectorConfig(domain="switch"))
@@ -119,7 +119,7 @@ def _build_entry_data(
 
 
 class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Config flow for irrigation_et0."""
+    """Config flow for smartgardn_et0."""
 
     VERSION = 1
 

@@ -10,7 +10,7 @@ async def migrate_from_nodered(
     hass, legacy_data: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Migrate legacy Node-RED irrigation data to irrigation_et0 format.
+    Migrate legacy Node-RED irrigation data to smartgardn_et0 format.
 
     Legacy Node-RED structure:
     {
@@ -30,7 +30,7 @@ async def migrate_from_nodered(
       }
     }
 
-    New irrigation_et0 format:
+    New smartgardn_et0 format:
     {
       "name": "Meine Anlage",
       "latitude": 51.5,
@@ -84,7 +84,7 @@ async def migrate_from_nodered(
         }
 
     _LOGGER.info(
-        "✓ Migrated %d zones from Node-RED to irrigation_et0",
+        "✓ Migrated %d zones from Node-RED to smartgardn_et0",
         len(new_data["zones"]),
     )
     return new_data
@@ -154,9 +154,9 @@ async def async_setup_migration_service(hass, entry_id: str):
         )
 
     hass.services.async_register(
-        "irrigation_et0",
+        "smartgardn_et0",
         "import_nodered_data",
         handle_import_nodered_data,
         schema=None,  # Accept any data structure
     )
-    _LOGGER.debug("✓ Registered irrigation_et0.import_nodered_data service")
+    _LOGGER.debug("✓ Registered smartgardn_et0.import_nodered_data service")

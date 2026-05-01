@@ -127,10 +127,10 @@ def test_cards_www_exists():
     """Test that cards are copied to custom_components www directory."""
     import os
     www_cards = [
-        'custom_components/irrigation_et0/www/overview-card.js',
-        'custom_components/irrigation_et0/www/history-card.js',
-        'custom_components/irrigation_et0/www/settings-card.js',
-        'custom_components/irrigation_et0/www/ansaat-card.js',
+        'custom_components/smartgardn_et0/www/overview-card.js',
+        'custom_components/smartgardn_et0/www/history-card.js',
+        'custom_components/smartgardn_et0/www/settings-card.js',
+        'custom_components/smartgardn_et0/www/ansaat-card.js',
     ]
     for card in www_cards:
         assert os.path.exists(card), f"{card} not found"
@@ -139,7 +139,7 @@ def test_cards_www_exists():
 def test_manifest_has_lovelace_resources():
     """Test that manifest.json includes Lovelace card resources."""
     import json
-    with open('custom_components/irrigation_et0/manifest.json') as f:
+    with open('custom_components/smartgardn_et0/manifest.json') as f:
         manifest = json.load(f)
         assert 'lovelace' in manifest
         assert 'resources' in manifest['lovelace']

@@ -9,16 +9,16 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irrigation_et0.const import DOMAIN
-from custom_components.irrigation_et0.coordinator import IrrigationCoordinator, QueueItem
+from custom_components.smartgardn_et0.const import DOMAIN
+from custom_components.smartgardn_et0.coordinator import IrrigationCoordinator, QueueItem
 
 
 async def _setup_coordinator(hass: HomeAssistant, entry: MockConfigEntry) -> IrrigationCoordinator:
     """Setup coordinator with async_track functions mocked."""
     entry.add_to_hass(hass)
     coord = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
             await coord.async_setup()
     return coord
 
@@ -269,7 +269,7 @@ async def test_frost_lock_fires_event_on_activation(hass: HomeAssistant, sample_
     coord = await _setup_coordinator(hass, sample_entry)
     try:
         events_fired: list[str] = []
-        hass.bus.async_listen("irrigation_et0_frost_lock", lambda e: events_fired.append("lock"))
+        hass.bus.async_listen("smartgardn_et0_frost_lock", lambda e: events_fired.append("lock"))
 
         with patch.object(coord, "_valve_off_then_trafo_check", new_callable=AsyncMock):
             hass.states.async_set("sensor.t_min", "-2.0")
@@ -292,7 +292,7 @@ async def test_frost_lock_fires_event_on_release(hass: HomeAssistant, sample_ent
             await coord._check_frost_and_lock()
 
         events_fired: list[str] = []
-        hass.bus.async_listen("irrigation_et0_frost_release", lambda e: events_fired.append("release"))
+        hass.bus.async_listen("smartgardn_et0_frost_release", lambda e: events_fired.append("release"))
 
         # Release frost lock
         hass.states.async_set("sensor.t_min", "10.0")
@@ -480,7 +480,7 @@ async def test_compute_next_start_ansaat_within_window(hass: HomeAssistant, samp
         coord._zone_times["z1"]["ansaat_bis"] = time(10, 0)
         coord._zone_numbers["z1"]["ansaat_intervall"] = 60.0
 
-        with patch("custom_components.irrigation_et0.coordinator.datetime") as mock_dt:
+        with patch("custom_components.smartgardn_et0.coordinator.datetime") as mock_dt:
             # Set time to 8:00
             now = datetime(2025, 1, 15, 8, 0, 0, tzinfo=UTC)
             mock_dt.now.return_value = now
@@ -512,7 +512,7 @@ async def test_daily_calc_with_fao56_method(hass: HomeAssistant, sample_entry: M
         hass.states.async_set("sensor.rain", "0.0")
 
         with patch.object(coord.storage, "async_save_immediate", new_callable=AsyncMock):
-            with patch("custom_components.irrigation_et0.coordinator.calc_et0_fao56") as mock_et0:
+            with patch("custom_components.smartgardn_et0.coordinator.calc_et0_fao56") as mock_et0:
                 mock_et0.return_value = 5.0
 
                 await coord._daily_calc()
@@ -537,10 +537,10 @@ async def test_daily_calc_fires_calc_done_event(hass: HomeAssistant, sample_entr
         hass.states.async_set("sensor.rain", "0.0")
 
         events_fired: list[str] = []
-        hass.bus.async_listen("irrigation_et0_calc_done", lambda e: events_fired.append("done"))
+        hass.bus.async_listen("smartgardn_et0_calc_done", lambda e: events_fired.append("done"))
 
         with patch.object(coord.storage, "async_save_immediate", new_callable=AsyncMock):
-            with patch("custom_components.irrigation_et0.coordinator.calc_et0_fao56", return_value=5.0):
+            with patch("custom_components.smartgardn_et0.coordinator.calc_et0_fao56", return_value=5.0):
                 await coord._daily_calc()
 
         await hass.async_block_till_done()
@@ -612,7 +612,7 @@ async def test_zone_done_clears_cs_and_runs_next(hass: HomeAssistant, sample_ent
         coord.running = QueueItem("z1", 30.0, 0, 10.0, started_at=datetime.now(UTC))
 
         events_fired: list[str] = []
-        hass.bus.async_listen("irrigation_et0_zone_finished", lambda e: events_fired.append(e.data.get("zone_id")))
+        hass.bus.async_listen("smartgardn_et0_zone_finished", lambda e: events_fired.append(e.data.get("zone_id")))
 
         with patch.object(coord, "_valve_off_then_trafo_check", new_callable=AsyncMock):
             with patch.object(coord, "_run_next_in_queue", new_callable=AsyncMock):

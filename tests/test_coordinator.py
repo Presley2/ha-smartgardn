@@ -5,8 +5,8 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irrigation_et0.const import DOMAIN
-from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
+from custom_components.smartgardn_et0.const import DOMAIN
+from custom_components.smartgardn_et0.coordinator import IrrigationCoordinator
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
@@ -23,8 +23,8 @@ async def test_coordinator_setup_loads_storage(hass: HomeAssistant) -> None:
         },
     )
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
             await coordinator.async_setup()
     try:
         # After setup, storage data is loaded (defaults when no file exists)
@@ -48,8 +48,8 @@ async def test_coordinator_update_data_returns_dict(hass: HomeAssistant) -> None
         },
     )
     coordinator = IrrigationCoordinator(hass, entry)
-    with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
+    with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
             await coordinator.async_setup()
     try:
         data = await coordinator._async_update_data()
@@ -110,9 +110,9 @@ async def test_setup_creates_hub_and_zone_devices(hass: HomeAssistant) -> None:
         new_callable=AsyncMock,
         return_value=None,
     ):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
-                from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
+                from custom_components.smartgardn_et0 import async_setup_entry
 
                 result = await async_setup_entry(hass, entry)
                 assert result is True

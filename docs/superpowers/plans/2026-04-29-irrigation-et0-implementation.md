@@ -1,8 +1,8 @@
-# irrigation_et0 Implementation Plan
+# smartgardn_et0 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a Home Assistant Custom Component (`irrigation_et0`) for irrigation control via FAO-56 Penman-Monteith ET₀ + daily NFK soil-water-balance, with 4 Lovelace cards, HACS-ready, no HA-restart on updates.
+**Goal:** Build a Home Assistant Custom Component (`smartgardn_et0`) for irrigation control via FAO-56 Penman-Monteith ET₀ + daily NFK soil-water-balance, with 4 Lovelace cards, HACS-ready, no HA-restart on updates.
 
 **Architecture:** DataUpdateCoordinator pattern, all state inside config entry (hot-reload safe), per-zone Device Registry, vendored PyETo, HA Storage with versioned schema, async event-driven scheduling, dry-run-default for safe onboarding.
 
@@ -27,7 +27,7 @@
 ```
 irrigation-ha/
 ├── custom_components/
-│   ├── irrigation_et0/
+│   ├── smartgardn_et0/
 │   │   ├── __init__.py
 │   │   ├── const.py
 │   │   ├── manifest.json
@@ -52,7 +52,7 @@ irrigation-ha/
 │   │   └── translations/
 │   │       ├── de.json
 │   │       └── en.json
-│   └── irrigation_et0_card/
+│   └── smartgardn_et0_card/
 │       ├── irrigation-et0-card.js
 │       └── irrigation-et0-card-editor.js
 ├── tests/
@@ -99,7 +99,7 @@ irrigation-ha/
 **Files:**
 - Create: `pyproject.toml`, `.gitignore`, `LICENSE`, `README.md`, `info.md`, `tests/conftest.py`
 
-- [ ] Create `pyproject.toml` with build-system, dependencies (pytest, pytest-asyncio, pytest-cov, pytest-homeassistant-custom-component, ruff, mypy, freezegun, homeassistant), and tool config (ruff line-length 100, mypy strict, pytest asyncio mode auto, coverage source `custom_components.irrigation_et0`)
+- [ ] Create `pyproject.toml` with build-system, dependencies (pytest, pytest-asyncio, pytest-cov, pytest-homeassistant-custom-component, ruff, mypy, freezegun, homeassistant), and tool config (ruff line-length 100, mypy strict, pytest asyncio mode auto, coverage source `custom_components.smartgardn_et0`)
 - [ ] Create `.gitignore` covering Python, `.venv/`, `__pycache__/`, `.pytest_cache/`, `htmlcov/`, `*.egg-info/`, IDE files
 - [ ] Create `LICENSE` (MIT) with current year + user name
 - [ ] Create `README.md` skeleton (sections: About, Features, Installation via HACS, Configuration, Cards, Services, Troubleshooting — content TBD in Phase 8)
@@ -111,16 +111,16 @@ irrigation-ha/
 ### Task 1.2: Constants module
 
 **Files:**
-- Create: `custom_components/irrigation_et0/const.py`
+- Create: `custom_components/smartgardn_et0/const.py`
 
-- [ ] Write `const.py` with: `DOMAIN = "irrigation_et0"`, `STORAGE_KEY`, `STORAGE_VERSION = 1`, all event names from spec §16 (`EVENT_ZONE_STARTED`, `EVENT_ZONE_FINISHED`, `EVENT_FROST_LOCK`, `EVENT_FROST_RELEASE`, `EVENT_CALC_DONE`, `EVENT_FALLBACK_ACTIVE`, `EVENT_UNEXPECTED_STATE`), all service names from spec §15, soil-type → mm/dm dict (from spec §3 step 4), default Kc per Zonentyp, default frost threshold 4°C, scheduling magic numbers (TRAFO_DELAY_S=0.5, FAILSAFE_INTERVAL_MIN=5, DAILY_CALC_HOUR=0, DAILY_CALC_MIN=5, GTS_RESET_MONTH=1, GTS_RESET_DAY=1)
+- [ ] Write `const.py` with: `DOMAIN = "smartgardn_et0"`, `STORAGE_KEY`, `STORAGE_VERSION = 1`, all event names from spec §16 (`EVENT_ZONE_STARTED`, `EVENT_ZONE_FINISHED`, `EVENT_FROST_LOCK`, `EVENT_FROST_RELEASE`, `EVENT_CALC_DONE`, `EVENT_FALLBACK_ACTIVE`, `EVENT_UNEXPECTED_STATE`), all service names from spec §15, soil-type → mm/dm dict (from spec §3 step 4), default Kc per Zonentyp, default frost threshold 4°C, scheduling magic numbers (TRAFO_DELAY_S=0.5, FAILSAFE_INTERVAL_MIN=5, DAILY_CALC_HOUR=0, DAILY_CALC_MIN=5, GTS_RESET_MONTH=1, GTS_RESET_DAY=1)
 - [ ] Add sensor-clamp limits dict from spec §9a.2: `SENSOR_LIMITS = {"temp": (-50, 60), "humidity": (0, 100), "wind": (0, 50), "solar": (0, 1500), "rain": (0, 200)}`
 - [ ] Commit: `feat: add const.py with all integration constants`
 
 ### Task 1.3: Vendor PyETo
 
 **Files:**
-- Create: `custom_components/irrigation_et0/_pyeto_vendor.py`
+- Create: `custom_components/smartgardn_et0/_pyeto_vendor.py`
 - Test: `tests/test_pyeto_vendor.py`
 
 - [ ] Identify the 6 PyETo functions we need: `fao56_penman_monteith`, `hargreaves`, `delta_svp`, `psy_const`, `svp_from_t`, `avp_from_rhmin_rhmax_tmin_tmax`, `net_rad`, `mean_svp`, plus solar-radiation helpers (`sol_dec`, `inv_rel_dist_earth_sun`, `sunset_hour_angle`, `et_rad`, `cs_rad`, `net_in_sol_rad`, `net_out_lw_rad`)
@@ -135,7 +135,7 @@ irrigation-ha/
 ### Task 1.4: et0_calculator module
 
 **Files:**
-- Create: `custom_components/irrigation_et0/et0_calculator.py`
+- Create: `custom_components/smartgardn_et0/et0_calculator.py`
 - Test: `tests/test_et0_calculator.py`
 
 Module exposes 3 pure functions:
@@ -158,7 +158,7 @@ def calc_et0_haude(t14, rh14, month) -> float
 ### Task 1.5: water_balance module
 
 **Files:**
-- Create: `custom_components/irrigation_et0/water_balance.py`
+- Create: `custom_components/smartgardn_et0/water_balance.py`
 - Test: `tests/test_water_balance.py`
 
 Module exposes:
@@ -184,7 +184,7 @@ def watering_dauer_min(nfk_aktuell, nfk_max, zielwert_pct, durchfluss_mm_min) ->
 ### Task 1.6: gts_calculator module
 
 **Files:**
-- Create: `custom_components/irrigation_et0/gts_calculator.py`
+- Create: `custom_components/smartgardn_et0/gts_calculator.py`
 - Test: `tests/test_gts_calculator.py`
 
 ```python
@@ -200,7 +200,7 @@ def gts_should_reset(today: date, last_reset: date | None) -> bool   # neuer Jan
 ### Task 1.7: storage module — schema v1
 
 **Files:**
-- Create: `custom_components/irrigation_et0/storage.py`
+- Create: `custom_components/smartgardn_et0/storage.py`
 - Test: `tests/test_storage.py`
 
 `storage.py` wraps `homeassistant.helpers.storage.Store`. Schema per spec §9.3.
@@ -223,7 +223,7 @@ class IrrigationStorage:
 
 ### Phase 1 Exit
 
-- [ ] Run full test suite: `uv run pytest --cov=custom_components.irrigation_et0 --cov-report=term-missing`
+- [ ] Run full test suite: `uv run pytest --cov=custom_components.smartgardn_et0 --cov-report=term-missing`
 - [ ] Coverage of touched modules ≥85%
 - [ ] All tests green
 - [ ] Tag: `git tag v0.0.1-foundation`
@@ -237,7 +237,7 @@ class IrrigationStorage:
 ### Task 2.1: manifest.json + hacs.json
 
 **Files:**
-- Create: `custom_components/irrigation_et0/manifest.json`, `hacs.json`
+- Create: `custom_components/smartgardn_et0/manifest.json`, `hacs.json`
 
 - [ ] Write `manifest.json` per spec §14.2 (no `requirements` since PyETo is vendored)
 - [ ] Write `hacs.json` per spec §14.1
@@ -247,7 +247,7 @@ class IrrigationStorage:
 ### Task 2.2: __init__.py minimal setup/unload
 
 **Files:**
-- Create: `custom_components/irrigation_et0/__init__.py`
+- Create: `custom_components/smartgardn_et0/__init__.py`
 - Test: `tests/test_unload_reload_cycle.py`
 
 Per spec §2.9 — strict listener tracking via `entry.async_on_unload`.
@@ -278,7 +278,7 @@ async def async_reload_entry(hass, entry):
 ### Task 2.3: config_flow.py — Step 1 (Anlage)
 
 **Files:**
-- Create: `custom_components/irrigation_et0/config_flow.py`
+- Create: `custom_components/smartgardn_et0/config_flow.py`
 - Test: `tests/test_config_flow.py`
 - Modify: translations/de.json, translations/en.json (add config flow strings)
 
@@ -323,7 +323,7 @@ async def async_reload_entry(hass, entry):
 ### Task 2.8: Coordinator skeleton
 
 **Files:**
-- Create: `custom_components/irrigation_et0/coordinator.py`
+- Create: `custom_components/smartgardn_et0/coordinator.py`
 - Test: `tests/test_coordinator.py`
 
 ```python
@@ -378,7 +378,7 @@ class IrrigationCoordinator(DataUpdateCoordinator):
 ### Task 3.1: sensor.py — Zone NFK sensors
 
 **Files:**
-- Create: `custom_components/irrigation_et0/sensor.py`
+- Create: `custom_components/smartgardn_et0/sensor.py`
 - Test: `tests/test_sensors.py`
 
 - [ ] Write `test_zone_nfk_sensor_state_matches_storage`
@@ -510,7 +510,7 @@ self.running: QueueItem | None = None
   4. Compute GTS, check year-reset
   5. For Ansaat zones: register first ansaat_tick of today
   6. For Semi/Voll zones: compute next_start_dt, register async_track_point_in_time
-  7. Fire `irrigation_et0_calc_done` event
+  7. Fire `smartgardn_et0_calc_done` event
 - [ ] Test individual sub-functions
 - [ ] Commit: `feat: daily 00:05 calculation`
 
@@ -606,7 +606,7 @@ self.running: QueueItem | None = None
 ### Task 5.1: Startup recovery of open valves
 
 **Files:**
-- Create: `custom_components/irrigation_et0/recovery.py`
+- Create: `custom_components/smartgardn_et0/recovery.py`
 - Test: `tests/test_recovery.py`
 
 - [ ] Write `test_recovery_resumes_zone_with_remaining_time`
@@ -648,7 +648,7 @@ self.running: QueueItem | None = None
 ### Task 5.6: Repairs
 
 **Files:**
-- Create: `custom_components/irrigation_et0/repairs.py`
+- Create: `custom_components/smartgardn_et0/repairs.py`
 - Test: `tests/test_repairs.py`
 
 - [ ] Write `test_repair_issue_created_when_weather_entity_unavailable_24h`
@@ -671,7 +671,7 @@ self.running: QueueItem | None = None
 ### Task 6.1: Services
 
 **Files:**
-- Create: `custom_components/irrigation_et0/services.yaml` (already in const planning)
+- Create: `custom_components/smartgardn_et0/services.yaml` (already in const planning)
 - Modify: `__init__.py` to register services
 - Test: `tests/test_services.py`
 
@@ -690,14 +690,14 @@ self.running: QueueItem | None = None
 
 ### Task 6.2: Events end-to-end
 
-- [ ] Already firing `irrigation_et0_calc_done`, `_zone_started/finished`, `_frost_lock/release`, `_fallback_active`, `_unexpected_state` from earlier tasks
+- [ ] Already firing `smartgardn_et0_calc_done`, `_zone_started/finished`, `_frost_lock/release`, `_fallback_active`, `_unexpected_state` from earlier tasks
 - [ ] Audit: write a single `test_event_contract.py` listening to bus and verifying each event has the documented payload shape
 - [ ] Commit: `test: event contract verification`
 
 ### Task 6.3: Diagnostics
 
 **Files:**
-- Create: `custom_components/irrigation_et0/diagnostics.py`
+- Create: `custom_components/smartgardn_et0/diagnostics.py`
 - Test: `tests/test_diagnostics.py`
 
 - [ ] Write `test_diagnostics_includes_storage_summary_redacted`
@@ -729,12 +729,12 @@ self.running: QueueItem | None = None
 ### Task 7.1: Card scaffold + registration
 
 **Files:**
-- Create: `custom_components/irrigation_et0_card/irrigation-et0-card.js`
+- Create: `custom_components/smartgardn_et0_card/irrigation-et0-card.js`
 
 - [ ] Implement base `class IrrigationEt0Card extends HTMLElement` with `setConfig`, `set hass`, `static get configElement`, etc.
 - [ ] Register: `customElements.define("irrigation-et0-card", IrrigationEt0Card)`
 - [ ] Push to `window.customCards` for picker UI
-- [ ] In `__init__.async_setup_entry`: register card via `frontend.add_extra_js_url(hass, "/irrigation_et0/irrigation-et0-card.js?v=" + VERSION)` and serve it via `http.async_register_static_paths`
+- [ ] In `__init__.async_setup_entry`: register card via `frontend.add_extra_js_url(hass, "/smartgardn_et0/irrigation-et0-card.js?v=" + VERSION)` and serve it via `http.async_register_static_paths`
 - [ ] Test: card-config validation throws on missing required fields
 - [ ] Commit: `feat: card scaffold with registration`
 

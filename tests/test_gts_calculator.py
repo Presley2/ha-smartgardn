@@ -1,7 +1,7 @@
 """Tests for the gts_calculator module."""
 from datetime import date
 
-from custom_components.irrigation_et0.gts_calculator import (
+from custom_components.smartgardn_et0.gts_calculator import (
     gts_increment,
     gts_should_reset,
     gts_weight,

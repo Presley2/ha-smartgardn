@@ -36,7 +36,7 @@ bash deploy-smb.sh
 
 **What it does:**
 1. ✅ Runs all tests
-2. ✅ Copies `custom_components/irrigation_et0/` to SMB
+2. ✅ Copies `custom_components/smartgardn_et0/` to SMB
 3. ✅ Triggers HA integration reload (if token provided)
 4. ✅ No Home Assistant restart needed (hot-reload)
 
@@ -55,7 +55,7 @@ If you prefer no scripts:
 mount_smbfs //homeassistant@192.168.1.100/homeassistant /Volumes/homeassistant
 
 # 2. Copy integration
-cp -r custom_components/irrigation_et0 /Volumes/homeassistant/custom_components/
+cp -r custom_components/smartgardn_et0 /Volumes/homeassistant/custom_components/
 
 # 3. In HA: Settings → Devices & Services → Irrigation ET₀ → ⚙️ → Reload
 ```
@@ -68,8 +68,8 @@ If HA runs on a Linux server with SSH:
 
 ```bash
 # Copy via rsync over SSH
-rsync -av custom_components/irrigation_et0/ \
-  user@192.168.1.100:/config/custom_components/irrigation_et0/
+rsync -av custom_components/smartgardn_et0/ \
+  user@192.168.1.100:/config/custom_components/smartgardn_et0/
 
 # Then reload via HA API
 curl -X POST \
@@ -121,7 +121,7 @@ python -m pytest tests/ -v
 **Recommended for rapid iteration:**
 
 ```bash
-# 1. Make code changes in custom_components/irrigation_et0/
+# 1. Make code changes in custom_components/smartgardn_et0/
 
 # 2. Test locally
 python -m pytest tests/ -q
@@ -185,7 +185,7 @@ Before deploying to production:
 
 - [ ] All tests pass: `pytest tests/ -q`
 - [ ] No ruff linting errors: `ruff check custom_components/`
-- [ ] Manifest.json valid: `python -c "import json; json.load(open('custom_components/irrigation_et0/manifest.json'))"`
+- [ ] Manifest.json valid: `python -c "import json; json.load(open('custom_components/smartgardn_et0/manifest.json'))"`
 - [ ] README updated
 - [ ] Version bumped in manifest.json
 - [ ] Git changes committed: `git add -A && git commit -m "..."`

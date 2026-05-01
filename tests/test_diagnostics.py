@@ -8,7 +8,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irrigation_et0.const import DOMAIN
+from custom_components.smartgardn_et0.const import DOMAIN
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
@@ -48,13 +48,13 @@ async def test_diagnostics_returns_redacted_config(hass: HomeAssistant) -> None:
         "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
         new_callable=AsyncMock,
     ):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
-                from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
+                from custom_components.smartgardn_et0 import async_setup_entry
 
                 await async_setup_entry(hass, entry)
 
-    from custom_components.irrigation_et0.diagnostics import (
+    from custom_components.smartgardn_et0.diagnostics import (
         async_get_config_entry_diagnostics,
     )
 
@@ -107,13 +107,13 @@ async def test_diagnostics_includes_zone_history(hass: HomeAssistant) -> None:
         "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
         new_callable=AsyncMock,
     ):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
-                from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
+                from custom_components.smartgardn_et0 import async_setup_entry
 
                 await async_setup_entry(hass, entry)
 
-    from custom_components.irrigation_et0.diagnostics import (
+    from custom_components.smartgardn_et0.diagnostics import (
         async_get_config_entry_diagnostics,
     )
 
@@ -147,13 +147,13 @@ async def test_diagnostics_includes_current_state(hass: HomeAssistant) -> None:
         "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
         new_callable=AsyncMock,
     ):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
-                from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
+                from custom_components.smartgardn_et0 import async_setup_entry
 
                 await async_setup_entry(hass, entry)
 
-    from custom_components.irrigation_et0.diagnostics import (
+    from custom_components.smartgardn_et0.diagnostics import (
         async_get_config_entry_diagnostics,
     )
 
@@ -194,13 +194,13 @@ async def test_diagnostics_includes_sensor_values(hass: HomeAssistant) -> None:
         "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
         new_callable=AsyncMock,
     ):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
-                from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
+                from custom_components.smartgardn_et0 import async_setup_entry
 
                 await async_setup_entry(hass, entry)
 
-    from custom_components.irrigation_et0.diagnostics import (
+    from custom_components.smartgardn_et0.diagnostics import (
         async_get_config_entry_diagnostics,
     )
 

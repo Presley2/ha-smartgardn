@@ -8,13 +8,13 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irrigation_et0.const import DOMAIN
+from custom_components.smartgardn_et0.const import DOMAIN
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_missing_entity_repair_flow_init(hass: HomeAssistant) -> None:
     """Test MissingEntityRepairFlow shows correct description."""
-    from custom_components.irrigation_et0.repairs import MissingEntityRepairFlow
+    from custom_components.smartgardn_et0.repairs import MissingEntityRepairFlow
 
     flow = MissingEntityRepairFlow()
     flow.hass = hass
@@ -31,7 +31,7 @@ async def test_missing_entity_repair_flow_init(hass: HomeAssistant) -> None:
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_missing_entity_repair_flow_confirm(hass: HomeAssistant) -> None:
     """Test MissingEntityRepairFlow confirm step resolves issue."""
-    from custom_components.irrigation_et0.repairs import MissingEntityRepairFlow
+    from custom_components.smartgardn_et0.repairs import MissingEntityRepairFlow
 
     flow = MissingEntityRepairFlow()
     flow.hass = hass
@@ -46,7 +46,7 @@ async def test_missing_entity_repair_flow_confirm(hass: HomeAssistant) -> None:
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_trafo_unavailable_repair_flow_init(hass: HomeAssistant) -> None:
     """Test TrafoUnavailableRepairFlow shows correct description."""
-    from custom_components.irrigation_et0.repairs import TrafoUnavailableRepairFlow
+    from custom_components.smartgardn_et0.repairs import TrafoUnavailableRepairFlow
 
     flow = TrafoUnavailableRepairFlow()
     flow.hass = hass
@@ -63,7 +63,7 @@ async def test_trafo_unavailable_repair_flow_init(hass: HomeAssistant) -> None:
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_trafo_unavailable_repair_flow_confirm(hass: HomeAssistant) -> None:
     """Test TrafoUnavailableRepairFlow confirm step resolves issue."""
-    from custom_components.irrigation_et0.repairs import TrafoUnavailableRepairFlow
+    from custom_components.smartgardn_et0.repairs import TrafoUnavailableRepairFlow
 
     flow = TrafoUnavailableRepairFlow()
     flow.hass = hass
@@ -78,7 +78,7 @@ async def test_trafo_unavailable_repair_flow_confirm(hass: HomeAssistant) -> Non
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_async_create_fix_flow_missing_entity(hass: HomeAssistant) -> None:
     """Test async_create_fix_flow creates MissingEntityRepairFlow for missing_entity issues."""
-    from custom_components.irrigation_et0.repairs import async_create_fix_flow
+    from custom_components.smartgardn_et0.repairs import async_create_fix_flow
 
     flow = await async_create_fix_flow(hass, "missing_entity_switch_valve")
 
@@ -88,7 +88,7 @@ async def test_async_create_fix_flow_missing_entity(hass: HomeAssistant) -> None
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_async_create_fix_flow_trafo_unavailable(hass: HomeAssistant) -> None:
     """Test async_create_fix_flow creates TrafoUnavailableRepairFlow for trafo issues."""
-    from custom_components.irrigation_et0.repairs import async_create_fix_flow
+    from custom_components.smartgardn_et0.repairs import async_create_fix_flow
 
     flow = await async_create_fix_flow(hass, "trafo_unavailable_switch_trafo")
 
@@ -98,7 +98,7 @@ async def test_async_create_fix_flow_trafo_unavailable(hass: HomeAssistant) -> N
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_async_create_fix_flow_unknown_issue(hass: HomeAssistant) -> None:
     """Test async_create_fix_flow defaults to MissingEntityRepairFlow."""
-    from custom_components.irrigation_et0.repairs import async_create_fix_flow
+    from custom_components.smartgardn_et0.repairs import async_create_fix_flow
 
     flow = await async_create_fix_flow(hass, "unknown_issue")
 
@@ -147,13 +147,13 @@ async def test_async_check_and_create_issues_missing_valve(hass: HomeAssistant) 
         "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
         new_callable=AsyncMock,
     ):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
-                from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
+                from custom_components.smartgardn_et0 import async_setup_entry
 
                 await async_setup_entry(hass, entry)
 
-    from custom_components.irrigation_et0.repairs import async_check_and_create_issues
+    from custom_components.smartgardn_et0.repairs import async_check_and_create_issues
 
     await async_check_and_create_issues(hass, entry)
 
@@ -190,13 +190,13 @@ async def test_async_check_and_create_issues_missing_trafo(hass: HomeAssistant) 
         "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
         new_callable=AsyncMock,
     ):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
-                from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
+                from custom_components.smartgardn_et0 import async_setup_entry
 
                 await async_setup_entry(hass, entry)
 
-    from custom_components.irrigation_et0.repairs import async_check_and_create_issues
+    from custom_components.smartgardn_et0.repairs import async_check_and_create_issues
 
     await async_check_and_create_issues(hass, entry)
 
@@ -252,13 +252,13 @@ async def test_async_check_and_create_issues_no_issues_when_entities_available(
         "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
         new_callable=AsyncMock,
     ):
-        with patch("custom_components.irrigation_et0.coordinator.async_track_time_change"):
-            with patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"):
-                from custom_components.irrigation_et0 import async_setup_entry
+        with patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"):
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"):
+                from custom_components.smartgardn_et0 import async_setup_entry
 
                 await async_setup_entry(hass, entry)
 
-    from custom_components.irrigation_et0.repairs import async_check_and_create_issues
+    from custom_components.smartgardn_et0.repairs import async_check_and_create_issues
 
     await async_check_and_create_issues(hass, entry)
 

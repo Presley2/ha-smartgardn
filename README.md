@@ -49,17 +49,17 @@ Configuration steps:
 - **Ansaat Card**: Seed watering timeline for intensive germination watering
 
 Services:
-- `irrigation_et0.start_zone(zone, dauer_min)` — Manual start
-- `irrigation_et0.stop_zone(zone)` — Manual stop
-- `irrigation_et0.stop_all()` — Emergency stop all
-- `irrigation_et0.import_nodered_data(data)` — Migrate from Node-RED
+- `smartgardn_et0.start_zone(zone, dauer_min)` — Manual start
+- `smartgardn_et0.stop_zone(zone)` — Manual stop
+- `smartgardn_et0.stop_all()` — Emergency stop all
+- `smartgardn_et0.import_nodered_data(data)` — Migrate from Node-RED
 
 ## Development
 
 Tests: `python -m pytest tests/ -v` (43+ tests)
 
 Structure:
-- `custom_components/irrigation_et0/` — Main integration (Python)
+- `custom_components/smartgardn_et0/` — Main integration (Python)
 - `src/cards/` — Lovelace card source (Lit + JavaScript)
 - `dist/cards/` — Built cards for distribution
 - `.github/workflows/` — CI/CD (tests, linting, releases)

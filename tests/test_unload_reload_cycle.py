@@ -7,7 +7,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.irrigation_et0.const import DOMAIN
+from custom_components.smartgardn_et0.const import DOMAIN
 
 
 @pytest.fixture
@@ -31,10 +31,10 @@ async def test_setup_then_unload_clears_data(
             new_callable=AsyncMock,
             return_value=True,
         ),
-        patch("custom_components.irrigation_et0.coordinator.async_track_time_change"),
-        patch("custom_components.irrigation_et0.coordinator.async_track_time_interval"),
+        patch("custom_components.smartgardn_et0.coordinator.async_track_time_change"),
+        patch("custom_components.smartgardn_et0.coordinator.async_track_time_interval"),
     ):
-        from custom_components.irrigation_et0 import async_setup_entry, async_unload_entry
+        from custom_components.smartgardn_et0 import async_setup_entry, async_unload_entry
 
         mock_entry.add_to_hass(hass)
         result = await async_setup_entry(hass, mock_entry)

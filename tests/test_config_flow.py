@@ -1,9 +1,9 @@
-"""Tests for irrigation_et0 config flow."""
+"""Tests for smartgardn_et0 config flow."""
 from __future__ import annotations
 
 import pytest
 
-from custom_components.irrigation_et0.const import DOMAIN
+from custom_components.smartgardn_et0.const import DOMAIN
 
 pytestmark = pytest.mark.usefixtures("enable_custom_integrations")
 

@@ -1,0 +1,14 @@
+{
+  "domain": "smartgardn_et0",
+  "name": "SmartGardn ET₀",
+  "version": "0.1.0",
+  "documentation": "https://github.com/michaelrichter/ha-smartgardn-et0",
+  "issue_tracker": "https://github.com/michaelrichter/ha-smartgardn-et0/issues",
+  "codeowners": ["@michaelrichter"],
+  "iot_class": "local_polling",
+  "integration_type": "service",
+  "dependencies": [],
+  "requirements": [],
+  "config_flow": true,
+  "repairs": "custom_components.smartgardn_et0.repairs"
+}

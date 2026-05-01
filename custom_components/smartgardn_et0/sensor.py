@@ -1,4 +1,4 @@
-"""Sensor platform for irrigation_et0."""
+"""Sensor platform for smartgardn_et0."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from custom_components.irrigation_et0.const import DOMAIN
-from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
+from custom_components.smartgardn_et0.const import DOMAIN
+from custom_components.smartgardn_et0.coordinator import IrrigationCoordinator
 
 
 class IrrigationNFKSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):

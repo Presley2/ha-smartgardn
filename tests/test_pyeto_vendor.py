@@ -3,7 +3,7 @@ import json
 import math
 from pathlib import Path
 import pytest
-from custom_components.irrigation_et0._pyeto_vendor import (
+from custom_components.smartgardn_et0._pyeto_vendor import (
     fao56_penman_monteith, hargreaves, delta_svp, psy_const,
     svp_from_t, avp_from_rhmin_rhmax, mean_svp, atmos_pres,
     sol_dec, inv_rel_dist_earth_sun, sunset_hour_angle,
