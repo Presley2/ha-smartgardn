@@ -16,6 +16,7 @@ from custom_components.irrigation_et0.const import (
     SERVICE_STOP_ZONE,
 )
 from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
+from custom_components.irrigation_et0.migration import async_setup_migration_service
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -89,6 +90,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         handle_stop_all,
         schema=vol.Schema({}),
     )
+
+    # Register migration service (Phase 9)
+    await async_setup_migration_service(hass, entry.entry_id)
 
     return True
 

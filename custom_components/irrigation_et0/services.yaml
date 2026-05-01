@@ -36,3 +36,14 @@ stop_zone:
 stop_all:
   name: Stop all
   description: Stop all zones immediately
+
+import_nodered_data:
+  name: Import Node-RED data
+  description: Migrate legacy Node-RED irrigation data to this integration
+  fields:
+    data:
+      name: Migration data
+      description: Legacy Node-RED configuration object (JSON)
+      required: true
+      selector:
+        object:

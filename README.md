@@ -1,83 +1,75 @@
-# irrigation_et0
+# Irrigation ET₀ — Home Assistant Integration
 
-> Smart irrigation scheduling for Home Assistant using reference evapotranspiration (ET₀).
+**Scientific irrigation control based on FAO-56 Penman-Monteith ET₀ calculations with daily NFK (soil water balance) per zone.**
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-
----
-
-## About
-
-`irrigation_et0` is a Home Assistant custom component that calculates daily
-reference evapotranspiration (ET₀) using the FAO-56 Penman-Monteith equation
-and uses that value to drive intelligent, weather-adaptive irrigation schedules.
-
-Instead of running your sprinklers on a fixed timer, this integration adjusts
-run times daily based on how much water the soil actually lost to evaporation
-and transpiration — no more over- or under-watering.
-
----
+![Language: Python](https://img.shields.io/badge/Language-Python-blue)
+![Home Assistant: 2024.10+](https://img.shields.io/badge/Home%20Assistant-2024.10+-green)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow)
+![HACS](https://img.shields.io/badge/HACS-Custom%20Integration-blue)
 
 ## Features
 
-- ET₀ calculation via FAO-56 Penman-Monteith using local weather sensors
-- Per-zone water-budget accounting with configurable crop coefficients (Kc)
-- Sunrise-relative schedule windows (e.g. "start 30 min before sunrise")
-- Skip logic for rain days and recent rainfall
-- Full UI configuration via Home Assistant config flow
-- HACS-compatible
+### 🌾 Core Irrigation Control
+- **FAO-56 Penman-Monteith ET₀ calculation** with vendored PyETo (no external Python dependencies)
+- **Daily NFK (Nutzbare Feldkapazität) soil water balance** per zone with historical tracking
+- **Grünlandtemperatursumme (GTS)** growing-degree sum with monthly weighting
+- **5 irrigation zones** with HomeMatic DRS8 valve actuators (or any HA switch entity)
+- **Multi-method ET₀ fallback chain**: FAO56 PM → Hargreaves → last_known → 0
 
----
+### 🎯 Irrigation Modes
+- **Aus (Off)**: Zone disabled
+- **Semi-Automatik**: Scheduled irrigation at fixed time
+- **Voll-Automatik**: Threshold-based irrigation when NFK falls below target
+- **Ansaat**: Intensive seed watering with hourly intervals (time-limited, e.g., 21 days)
 
-## Installation via HACS
+### 🔄 Advanced Features
+- **Cycle & Soak (C&S)**: Irrigation in multiple cycles with configurable pauses for better soil penetration
+- **Frost lock**: Automatically blocks all irrigation when T_min drops below threshold
+- **Hot-reload safe**: Update integration without restarting Home Assistant (all state in config entry)
+- **Dry-run mode**: Test configuration without opening valves
+- **Power-loss recovery**: Resumes interrupted zones after power outages via storage persistence
 
-1. Open **HACS** in your Home Assistant sidebar.
-2. Go to **Integrations → ⋮ → Custom repositories**.
-3. Add `https://github.com/youruser/irrigation-ha` with category **Integration**.
-4. Search for **irrigation_et0** and click **Download**.
-5. Restart Home Assistant.
+## Installation & Configuration
 
----
+Via HACS: Settings → Devices & Services → HACS → Integrations → Search "Irrigation ET₀" → Install → Restart HA
 
-## Configuration
+Then: Settings → Devices & Services → Create Integration → "Irrigation ET₀"
 
-After installation, add the integration via **Settings → Devices & Services → Add Integration → Irrigation ET₀**.
+Configuration steps:
+1. Installation location (name, GPS coordinates, elevation)
+2. Weather sensors (temperature, rainfall, optional: solar radiation, humidity, wind)
+3. Hardware (trafo valve switch, frost threshold)
+4. Zones (name, soil type, root depth, zone switch entity)
 
-The config flow will ask for:
+## Usage
 
-| Field | Description |
-|---|---|
-| Weather station entity | Entity providing temperature, humidity, wind speed, solar radiation |
-| Latitude / Longitude | Used for astronomical calculations |
-| Rain sensor (optional) | Skip irrigation when recent rainfall exceeds threshold |
+- **Overview Card**: Real-time zone status with NFK%, ETc, rain, next start
+- **Settings Card**: Adjust all zone parameters with sliders
+- **History Card**: 7-day water balance trends
+- **Ansaat Card**: Seed watering timeline for intensive germination watering
 
----
+Services:
+- `irrigation_et0.start_zone(zone, dauer_min)` — Manual start
+- `irrigation_et0.stop_zone(zone)` — Manual stop
+- `irrigation_et0.stop_all()` — Emergency stop all
+- `irrigation_et0.import_nodered_data(data)` — Migrate from Node-RED
 
-## Cards
+## Development
 
-*(Lovelace card documentation — coming soon)*
+Tests: `python -m pytest tests/ -v` (43+ tests)
 
----
+Structure:
+- `custom_components/irrigation_et0/` — Main integration (Python)
+- `src/cards/` — Lovelace card source (Lit + JavaScript)
+- `dist/cards/` — Built cards for distribution
+- `.github/workflows/` — CI/CD (tests, linting, releases)
 
-## Services
+## License
 
-| Service | Description |
-|---|---|
-| `irrigation_et0.run_zone` | Manually trigger a zone for a given duration |
-| `irrigation_et0.skip_today` | Skip today's scheduled run for one or all zones |
-| `irrigation_et0.reset_budget` | Reset the water budget for a zone |
+MIT License
 
----
+## Author
 
-## Troubleshooting
+Michael Richter — [GitHub](https://github.com/michaelrichter)
 
-- **ET₀ sensor shows unavailable** — Check that all required weather sensor entities are providing valid numeric states.
-- **Zones not running** — Verify the schedule window and that the zone switch entity is correctly configured.
-- **Logs** — Enable debug logging in `configuration.yaml`:
-
-```yaml
-logger:
-  default: warning
-  logs:
-    custom_components.irrigation_et0: debug
-```
+v0.1.0 — 2026-05-01
