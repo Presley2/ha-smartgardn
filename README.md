@@ -59,6 +59,20 @@
 3. Restart Home Assistant
 4. Settings → Devices & Services → **Create Integration** → "SmartGardn ET₀"
 
+### Lovelace Cards (Automatic)
+
+**The custom Lovelace cards are automatically registered upon installation!**
+
+After setup, the cards are immediately available:
+- **Overview Card** — `custom:irrigation-overview-card`
+- **Settings Card** — `custom:irrigation-settings-card`
+- **History Card** — `custom:irrigation-history-card`
+- **Ansaat Card** — `custom:irrigation-ansaat-card`
+
+Add them to your dashboard via the Lovelace UI Editor. No manual resource registration required.
+
+For detailed setup and troubleshooting: [INSTALLATION_CARDS_TEST.md](docs/INSTALLATION_CARDS_TEST.md)
+
 ---
 
 ## ⚙️ Configuration
