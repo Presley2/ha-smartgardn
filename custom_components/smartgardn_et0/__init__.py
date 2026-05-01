@@ -14,6 +14,7 @@ from homeassistant.components.http import StaticPathConfig
 from custom_components.smartgardn_et0.const import (
     DOMAIN,
     PLATFORMS,
+    SERVICE_RECALCULATE,
     SERVICE_START_ZONE,
     SERVICE_STOP_ALL,
     SERVICE_STOP_ZONE,
@@ -124,6 +125,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def handle_stop_all(call: ServiceCall) -> None:
         await coordinator.async_stop_all()
 
+    async def handle_recalculate(call: ServiceCall) -> None:
+        await coordinator._daily_calc()
+        await coordinator.async_request_refresh()
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_START_ZONE,
@@ -147,6 +152,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         DOMAIN,
         SERVICE_STOP_ALL,
         handle_stop_all,
+        schema=vol.Schema({}),
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RECALCULATE,
+        handle_recalculate,
         schema=vol.Schema({}),
     )
 

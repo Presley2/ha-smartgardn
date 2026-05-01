@@ -37,6 +37,10 @@ stop_all:
   name: Stop all
   description: Stop all zones immediately
 
+recalculate_now:
+  name: Recalculate now
+  description: Trigger daily ET0/NFK calculation and scheduling immediately
+
 import_nodered_data:
   name: Import Node-RED data
   description: Migrate legacy Node-RED irrigation data to this integration

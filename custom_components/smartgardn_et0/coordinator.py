@@ -85,9 +85,46 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         self._frost_active: bool = False
         self._zone_done_unsub: dict[str, Callable[[], None]] = {}
 
+    def _ensure_storage_schema(self) -> None:
+        """Ensure storage has expected globals and one initialized record per configured zone."""
+        if self._storage_data is None:
+            return
+
+        globals_data = self._storage_data.setdefault("globals", {})
+        globals_data.setdefault("gts", 0.0)
+        globals_data.setdefault("gts_jahr", 0)
+        globals_data.setdefault("et_methode", "fao56")
+        globals_data.setdefault("letzte_et0_berechnung", None)
+        globals_data.setdefault("et0_last_known", 0.0)
+
+        zones_storage = self._storage_data.setdefault("zones", {})
+        for zone_id, zone_cfg in self.entry.data.get("zones", {}).items():
+            nfk_max = float(zone_cfg.get("nfk_max", 150))
+            nfk_start_pct = float(zone_cfg.get("nfk_start_pct", 85))
+            nfk_start = max(0.0, min(nfk_max, nfk_max * nfk_start_pct / 100.0))
+
+            zone_storage = zones_storage.setdefault(
+                zone_id,
+                {
+                    "name": zone_cfg.get("zone_name", zone_id),
+                    "nfk_aktuell": nfk_start,
+                    "letzte_berechnung": None,
+                    "ansaat_start_datum": None,
+                    "verlauf": [],
+                    "scheduling": {},
+                },
+            )
+            scheduling = zone_storage.setdefault("scheduling", {})
+            scheduling.setdefault("next_start_dt", None)
+            scheduling.setdefault("next_ansaat_tick", None)
+            scheduling.setdefault("running_since", None)
+            scheduling.setdefault("active_zone_remaining_min", 0.0)
+            scheduling.setdefault("queue", [])
+
     async def async_setup(self) -> None:
         """Load storage and register scheduled callbacks."""
         self._storage_data = await self.storage.async_load()
+        self._ensure_storage_schema()
         for zone_id, zone_cfg in self.entry.data.get("zones", {}).items():
             self._zone_enabled[zone_id] = True
             self._zone_weekdays[zone_id] = dict.fromkeys(WEEKDAYS, True)
@@ -111,6 +148,8 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
 
         # Phase 5.1 + 5.5: Startup recovery — check for zones stuck running
         await self._startup_recovery()
+        if self._storage_data:
+            await self.storage.async_save_immediate(self._storage_data)
 
         # Phase 7: Check and create repair issues
         from custom_components.smartgardn_et0.repairs import async_check_and_create_issues
@@ -455,6 +494,9 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
 
     async def _trafo_on_then_valve(self, valve_entity_id: str) -> None:
         """Turn on trafo (if configured), wait TRAFO_DELAY_S, turn on valve."""
+        if self._dry_run:
+            _LOGGER.info("Dry-run active: skip turn_on for %s", valve_entity_id)
+            return
         trafo_entity = self.entry.data.get("trafo_entity")
         if trafo_entity:
             await self._switch_service("turn_on", trafo_entity)
@@ -463,6 +505,9 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
 
     async def _valve_off_then_trafo_check(self, valve_entity_id: str) -> None:
         """Turn off valve, wait TRAFO_DELAY_S, turn off trafo if all valves are off."""
+        if self._dry_run:
+            _LOGGER.info("Dry-run active: skip turn_off for %s", valve_entity_id)
+            return
         await self._switch_service("turn_off", valve_entity_id)
         trafo_entity = self.entry.data.get("trafo_entity")
         if trafo_entity:
@@ -493,6 +538,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
 
     async def _run_next_in_queue(self) -> None:
         """Pop next item from queue and start it."""
+        self._ensure_storage_schema()
         if not self.queue:
             self.running = None
             return
@@ -516,6 +562,12 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         await self._trafo_on_then_valve(valve_id)
         self.running.started_at = datetime.now(UTC)
         duration_s = self.running.dauer_min * 60
+        if self._storage_data:
+            zone_storage = self._storage_data["zones"].get(zone_id)
+            if zone_storage:
+                zone_storage["scheduling"]["running_since"] = self.running.started_at.isoformat()
+                zone_storage["scheduling"]["active_zone_remaining_min"] = self.running.dauer_min
+                await self.storage.async_save_immediate(self._storage_data)
 
         # Schedule end callback using async_track_point_in_time
         end_dt = datetime.now(UTC) + timedelta(seconds=duration_s)
@@ -547,6 +599,12 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             return
 
         await self._valve_off_then_trafo_check(valve_id)
+        if self._storage_data:
+            zone_storage = self._storage_data["zones"].get(zone_id)
+            if zone_storage:
+                zone_storage["scheduling"]["running_since"] = None
+                zone_storage["scheduling"]["active_zone_remaining_min"] = 0.0
+                await self.storage.async_save_immediate(self._storage_data)
 
         # Handle Cycle & Soak: if cs_remaining > 0, schedule resume using event scheduler
         if self.running.cs_remaining > 0:
@@ -605,6 +663,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         if not storage:
             _LOGGER.error("Storage not loaded, skipping daily calc")
             return
+        self._ensure_storage_schema()
 
         # Phase 5.2: Catch-up on missed days
         await self._catch_up_missed_days()
@@ -690,6 +749,11 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         globals_data["gts"] += gts_inc
         globals_data["letzte_et0_berechnung"] = datetime.now(UTC).isoformat()
 
+        forecast = await self._fetch_dwd_forecast()
+        if self.data is None:
+            self.data = {}
+        self.data["dwd_forecast"] = forecast
+
         # Step 4-5: For each zone, compute next_start_dt and schedule async_track_point_in_time
         for zone_id, zone_cfg in data.get("zones", {}).items():
             zone_storage = storage["zones"].get(zone_id)
@@ -720,13 +784,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         await self.storage.async_save_immediate(storage)
 
         # Update coordinator data with fallback status
-        if self.data is None:
-            self.data = {}
         self.data["et_fallback_active"] = et_fallback_active
-
-        # Step 7: DWD Forecast (optional, fire-and-forget)
-        forecast = await self._fetch_dwd_forecast()
-        self.data["dwd_forecast"] = forecast
 
         self.hass.bus.async_fire(
             "smartgardn_et0_calc_done", {"timestamp": datetime.now(UTC).isoformat()}
@@ -880,11 +938,18 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             self._frost_active = True
             # Stop running zone if any
             if self.running:
+                running_zone_id = self.running.zone_id
                 zone_cfg = self.entry.data.get("zones", {}).get(self.running.zone_id)
                 if zone_cfg:
                     valve_id = zone_cfg.get("valve_entity")
                     if valve_id:
                         await self._valve_off_then_trafo_check(valve_id)
+                if self._storage_data:
+                    zone_storage = self._storage_data["zones"].get(running_zone_id)
+                    if zone_storage:
+                        zone_storage["scheduling"]["running_since"] = None
+                        zone_storage["scheduling"]["active_zone_remaining_min"] = 0.0
+                        await self.storage.async_save_immediate(self._storage_data)
                 self.running = None
             # Clear queue
             self.queue.clear()
@@ -945,6 +1010,12 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 valve_id = zone_cfg["valve_entity"]
                 await self._valve_off_then_trafo_check(valve_id)
             self.running = None
+            if self._storage_data:
+                zone_storage = self._storage_data["zones"].get(zone_id)
+                if zone_storage:
+                    zone_storage["scheduling"]["running_since"] = None
+                    zone_storage["scheduling"]["active_zone_remaining_min"] = 0.0
+                    await self.storage.async_save_immediate(self._storage_data)
             _LOGGER.info("Stopped zone %s", zone_id)
             self.hass.bus.async_fire(
                 "smartgardn_et0_zone_finished", {"zone_id": zone_id}
@@ -961,7 +1032,17 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             if zone_cfg:
                 valve_id = zone_cfg["valve_entity"]
                 await self._valve_off_then_trafo_check(valve_id)
+                if self._storage_data:
+                    zone_storage = self._storage_data["zones"].get(self.running.zone_id)
+                    if zone_storage:
+                        zone_storage["scheduling"]["running_since"] = None
+                        zone_storage["scheduling"]["active_zone_remaining_min"] = 0.0
             self.running = None
+        if self._storage_data:
+            for zone_storage in self._storage_data["zones"].values():
+                zone_storage["scheduling"]["running_since"] = None
+                zone_storage["scheduling"]["active_zone_remaining_min"] = 0.0
+            await self.storage.async_save_immediate(self._storage_data)
 
         # Clear queue
         self.queue.clear()

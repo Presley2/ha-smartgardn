@@ -4,7 +4,7 @@
 DOMAIN = "smartgardn_et0"
 STORAGE_KEY = "smartgardn_et0"
 STORAGE_VERSION = 1
-VERSION = "0.1.0"
+VERSION = "0.2.1"
 
 # Event names
 EVENT_ZONE_STARTED = "smartgardn_et0_zone_started"

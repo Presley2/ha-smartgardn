@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "irrigation-et0"
-version = "0.1.0"
+version = "0.2.1"
 description = "Home Assistant custom component for ET₀-based smart irrigation scheduling"
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-05-01
+
+### Fixed
+- **HACS metadata consistency** — unified repository links across README, `info.md`, and integration metadata
+- **Release workflow output reference** — added missing `id: create_release` so release asset upload can resolve `upload_url`
+- **Coordinator storage initialization** — ensure per-zone storage schema and defaults are created for configured zones
+- **Power-loss recovery persistence** — persist and clear `running_since` / remaining runtime state on start/stop/frost paths
+- **Dry-run behavior** — prevent physical valve/trafo switching while dry-run mode is enabled
+- **Rain-skip scheduling timing** — load forecast before computing next start times so skip logic uses fresh forecast data
+- **Service/API alignment** — expose `recalculate_now` service in runtime registration and service docs
+
 ## [0.2.0] - 2026-05-01
 
 ### Fixed
