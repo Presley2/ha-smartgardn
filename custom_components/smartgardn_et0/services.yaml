@@ -8,7 +8,7 @@ start_zone:
       required: true
       selector:
         entity:
-          integration: irrigation_et0
+          integration: smartgardn_et0
           domain: select
     dauer_min:
       name: Duration
@@ -30,7 +30,7 @@ stop_zone:
       required: true
       selector:
         entity:
-          integration: irrigation_et0
+          integration: smartgardn_et0
           domain: select
 
 stop_all:

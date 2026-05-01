@@ -49,7 +49,7 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["custom_components.irrigation_et0"]
+source = ["custom_components.smartgardn_et0"]
 branch = true
 
 [tool.coverage.report]

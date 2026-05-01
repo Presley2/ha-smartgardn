@@ -91,7 +91,7 @@ export class IrrigationAnsaatCard extends LitElement {
   _startAnsaat(zoneId) {
     if (!this.hass || !this.config?.entry_id) return;
     const entryId = this.config.entry_id;
-    this.hass.callService('irrigation_et0', 'start_zone', {
+    this.hass.callService('smartgardn_et0', 'start_zone', {
       zone: `select.${entryId}_${zoneId}_modus`,
       dauer_min: 5, // Default short burst for ansaat
     });
@@ -100,7 +100,7 @@ export class IrrigationAnsaatCard extends LitElement {
   _stopAnsaat(zoneId) {
     if (!this.hass || !this.config?.entry_id) return;
     const entryId = this.config.entry_id;
-    this.hass.callService('irrigation_et0', 'stop_zone', {
+    this.hass.callService('smartgardn_et0', 'stop_zone', {
       zone: `select.${entryId}_${zoneId}_modus`,
     });
   }
