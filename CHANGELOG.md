@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-05-01
+
+### Fixed
+- **CRITICAL: Frost lock bug** — now works with both `temp_entity` and legacy `temp_min_entity` configs
+- **CRITICAL: Unsafe dict access** — add safe zone config checks to prevent crashes during reconfiguration
+- **CRITICAL: Entity ID parsing** — replace string-based parsing with Base64 encoding for robustness
+- **CRITICAL: Cycle & Soak blocking** — replace `asyncio.sleep()` with event-based scheduling to keep coordinator responsive
+- **CRITICAL: Startup recovery race condition** — improve thread-safety with proper dict access patterns
+- **Calculation: LUX sensor conversion** — fix 1000× underestimation (was `1/54000`, now `1/54`)
+- **Calculation: PAR sensor accuracy** — improve conversion from `0.51` to `0.0219` (more physically accurate)
+- **Recorder timeout** — add 5-second timeout to prevent coordinator from blocking on slow database
+- **Input validation** — enhance config flow with longitude range, elevation bounds, Kc plausibility, zone uniqueness checks
+- **Manifest** — add lovelace resources section with 4 custom cards
+- **Test updates** — fix repairs tests for Base64 encoding, update C&S test for event scheduling
+
+### Security
+- Implement safe dictionary access throughout coordinator to prevent KeyError crashes
+- Add null-checks for entity configuration during runtime operations
+
 ## [0.1.0] - 2026-05-01
 
 ### Added

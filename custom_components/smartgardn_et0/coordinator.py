@@ -206,8 +206,10 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         if valve_id:
             await self._valve_off_then_trafo_check(valve_id)
         if self._storage_data:
-            self._storage_data["zones"][zone_id]["scheduling"]["running_since"] = None
-            await self.storage.async_save_immediate(self._storage_data)
+            zone_data = self._storage_data.get("zones", {}).get(zone_id)
+            if zone_data:
+                zone_data["scheduling"]["running_since"] = None
+                await self.storage.async_save_immediate(self._storage_data)
 
     async def _get_daily_minmax(
         self, entity_id: str | None, start_time: datetime | None = None
@@ -233,15 +235,23 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 _LOGGER.warning("Recorder not available for %s", entity_id)
                 return None, None
 
-            # Query HA history for sensor state changes in the window
-            history = await recorder.async_add_executor_job(
-                lambda: recorder.history.get_significant_states(
-                    self.hass,
-                    start_time,
-                    entity_ids=[entity_id],
-                    significant_changes_only=False,
+            # Query HA history with timeout to prevent blocking coordinator
+            try:
+                history = await asyncio.wait_for(
+                    self.hass.loop.run_in_executor(
+                        None,
+                        recorder.history.get_significant_states,
+                        self.hass,
+                        start_time,
+                        None,
+                        [entity_id],
+                        False,
+                    ),
+                    timeout=5.0
                 )
-            )
+            except asyncio.TimeoutError:
+                _LOGGER.warning("Recorder timeout for history of %s, skipping history", entity_id)
+                return None, None
 
             if not history or entity_id not in history:
                 _LOGGER.debug("No history data for %s", entity_id)
@@ -487,7 +497,22 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             self.running = None
             return
         self.running = self.queue.popleft()
-        valve_id = self.entry.data["zones"][self.running.zone_id]["valve_entity"]
+
+        # Validate zone still exists in config
+        zone_cfg = self.entry.data.get("zones", {}).get(self.running.zone_id)
+        if not zone_cfg:
+            _LOGGER.error("Zone %s not found in config during queue run", self.running.zone_id)
+            self.running = None
+            await self._run_next_in_queue()
+            return
+
+        valve_id = zone_cfg.get("valve_entity")
+        if not valve_id:
+            _LOGGER.error("No valve entity for zone %s", self.running.zone_id)
+            self.running = None
+            await self._run_next_in_queue()
+            return
+
         await self._trafo_on_then_valve(valve_id)
         self.running.started_at = datetime.now(UTC)
         duration_s = self.running.dauer_min * 60
@@ -505,16 +530,34 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         if not self.running:
             return
         zone_id = self.running.zone_id
-        valve_id = self.entry.data["zones"][zone_id]["valve_entity"]
+
+        # Validate zone still exists in config
+        zone_cfg = self.entry.data.get("zones", {}).get(zone_id)
+        if not zone_cfg:
+            _LOGGER.error("Zone %s not found in config during completion", zone_id)
+            self.running = None
+            await self._run_next_in_queue()
+            return
+
+        valve_id = zone_cfg.get("valve_entity")
+        if not valve_id:
+            _LOGGER.error("No valve entity for zone %s", zone_id)
+            self.running = None
+            await self._run_next_in_queue()
+            return
+
         await self._valve_off_then_trafo_check(valve_id)
 
-        # Handle Cycle & Soak: if cs_remaining > 0, requeue same zone with pause
+        # Handle Cycle & Soak: if cs_remaining > 0, schedule resume using event scheduler
         if self.running.cs_remaining > 0:
             self.running.cs_remaining -= 1
-            await asyncio.sleep(self.running.cs_pause_min * 60)
-            await self.async_enqueue_start(
-                zone_id, self.running.dauer_min, self.running.cs_remaining, self.running.cs_pause_min
+            pause_end = datetime.now(UTC) + timedelta(minutes=self.running.cs_pause_min)
+            unsub = async_track_point_in_time(
+                self.hass,
+                partial(self._zone_cs_pause_done, zone_id, self.running.dauer_min, self.running.cs_remaining, self.running.cs_pause_min),
+                pause_end
             )
+            self._unsubs.append(unsub)
         else:
             # Fire zone_finished event
             self.hass.bus.async_fire("smartgardn_et0_zone_finished", {"zone_id": zone_id})
@@ -523,6 +566,17 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 del self._zone_done_unsub[zone_id]
             # Move to next in queue
             await self._run_next_in_queue()
+
+    async def _zone_cs_pause_done(
+        self, zone_id: str, dauer_min: float, cs_remaining: int, cs_pause_min: float
+    ) -> None:
+        """Called when Cycle & Soak pause ends, resume the same zone."""
+        zone_cfg = self.entry.data.get("zones", {}).get(zone_id)
+        if not zone_cfg:
+            _LOGGER.error("Zone %s not found after C&S pause", zone_id)
+            await self._run_next_in_queue()
+            return
+        await self.async_enqueue_start(zone_id, dauer_min, cs_remaining, cs_pause_min)
 
     async def _failsafe_check(self) -> None:
         """Every 5 min: if trafo is on but all valves are off, turn off trafo."""
@@ -811,7 +865,10 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
     async def _check_frost_and_lock(self) -> None:
         """Check if frost is active; if so, stop running zone and block new starts."""
         frost_threshold = self.entry.data.get("frost_threshold", 4.0)
-        t_min_state = self.hass.states.get(self.entry.data.get("temp_min_entity"))
+
+        # Try unified temp_entity first, then fallback to temp_min_entity
+        temp_entity = self.entry.data.get("temp_entity") or self.entry.data.get("temp_min_entity")
+        t_min_state = self.hass.states.get(temp_entity) if temp_entity else None
 
         frost_active = False
         if t_min_state and t_min_state.state not in ("unknown", "unavailable"):
@@ -823,8 +880,11 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             self._frost_active = True
             # Stop running zone if any
             if self.running:
-                valve_id = self.entry.data["zones"][self.running.zone_id]["valve_entity"]
-                await self._valve_off_then_trafo_check(valve_id)
+                zone_cfg = self.entry.data.get("zones", {}).get(self.running.zone_id)
+                if zone_cfg:
+                    valve_id = zone_cfg.get("valve_entity")
+                    if valve_id:
+                        await self._valve_off_then_trafo_check(valve_id)
                 self.running = None
             # Clear queue
             self.queue.clear()

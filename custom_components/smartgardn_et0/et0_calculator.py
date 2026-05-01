@@ -23,10 +23,13 @@ from custom_components.smartgardn_et0._pyeto_vendor import (
 from custom_components.smartgardn_et0.const import SENSOR_LIMITS
 
 # Solar sensor type conversions to W/m²
+# References:
+# - Lux: ~54000 lux = 1000 W/m² (photopic response)
+# - PAR: 1 µmol/m²/s × 0.0219 W/m²/µmol/m²/s (quantum efficiency ~217.5 kJ/mol)
 SOLAR_SENSOR_CONVERSIONS = {
     "w_m2": 1.0,           # W/m² — no conversion needed
-    "lux": 1.0 / 54000.0,  # Lux to W/m² (approx. 54000 lux = 1000 W/m²)
-    "par": 0.51 / 1.0,     # µmol/m²/s to W/m² (1 µmol/m²/s ≈ 0.51 W/m²)
+    "lux": 1.0 / 54.0,     # Lux to W/m² (54000 lux ≈ 1000 W/m²)
+    "par": 0.0219,         # µmol/m²/s to W/m²
 }
 
 # Unit conversion: W/m² × 0.0864 = MJ/m²/day
@@ -197,7 +200,11 @@ def calc_ka(t_max: float) -> float:
     """Geisenheimer seasonal climate correction factor.
 
     Ka = 0.6 + 0.028 × T_max - 0.0002 × T_max²
+    where T_max is in °C.
     Clamped to [0.4, 1.4].
+
+    At T_max=10°C: Ka = 0.6 + 0.28 - 0.02 = 0.86
+    At T_max=30°C: Ka = 0.6 + 0.84 - 0.18 = 1.26
     """
     ka = 0.6 + 0.028 * t_max - 0.0002 * t_max**2
     return float(max(0.4, min(1.4, ka)))

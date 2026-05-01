@@ -28,10 +28,9 @@ _ENTITY_SWITCH = EntitySelector(EntitySelectorConfig(domain="switch"))
 STEP_USER_SCHEMA = vol.Schema(
     {
         vol.Required("name"): TextSelector(),
-        vol.Required("location"): LocationSelector(),
-        vol.Required("elevation"): NumberSelector(
-            NumberSelectorConfig(min=-500, max=9000, step=1, mode=NumberSelectorMode.BOX)
-        ),
+        vol.Required("latitude"): vol.Coerce(float),
+        vol.Required("longitude"): vol.Coerce(float),
+        vol.Required("elevation"): vol.Coerce(int),
     }
 )
 
@@ -45,7 +44,8 @@ _OPTIONAL_WEATHER_FIELDS = (
 
 STEP_WEATHER_SCHEMA = vol.Schema(
     {
-        vol.Required("temp_entity"): _ENTITY_SENSOR,
+        vol.Required("temp_min_entity"): _ENTITY_SENSOR,
+        vol.Required("temp_max_entity"): _ENTITY_SENSOR,
         vol.Optional("humidity_entity"): _ENTITY_SENSOR,
         vol.Optional("solar_entity"): _ENTITY_SENSOR,
         vol.Optional("solar_sensor_type"): SelectSelector(
@@ -132,7 +132,8 @@ def _build_entry_data(
         "latitude": latitude,
         "longitude": longitude,
         "elevation": elevation,
-        "temp_entity": weather.get("temp_entity"),
+        "temp_min_entity": weather.get("temp_min_entity"),
+        "temp_max_entity": weather.get("temp_max_entity"),
         "humidity_entity": weather.get("humidity_entity"),
         "solar_entity": weather.get("solar_entity"),
         "solar_sensor_type": weather.get("solar_sensor_type", "w_m2"),
@@ -164,19 +165,25 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             name = str(user_input["name"]).strip()
-            location = user_input.get("location", {})
+            latitude = float(user_input["latitude"])
+            longitude = float(user_input["longitude"])
             elevation = int(user_input["elevation"])
 
-            # Parse location (dict with "latitude" and "longitude" keys)
-            try:
-                latitude = float(location.get("latitude", 0))
-                longitude = float(location.get("longitude", 0))
-            except (ValueError, TypeError):
-                errors["location"] = "invalid_location"
+            # Validate name is not empty
+            if not name:
+                errors["name"] = "required"
 
             # Validate latitude range
-            if not errors and not -90 <= latitude <= 90:
+            if not -90 <= latitude <= 90:
                 errors["latitude"] = "invalid_latitude"
+
+            # Validate longitude range
+            if not -180 <= longitude <= 180:
+                errors["longitude"] = "invalid_longitude"
+
+            # Validate elevation range (realistic bounds: -500m to 9000m)
+            if not -500 <= elevation <= 9000:
+                errors["elevation"] = "invalid_elevation"
 
             if not errors:
                 # Check for duplicate name across existing entries
@@ -204,7 +211,8 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self._weather = {
-                "temp_entity": user_input.get("temp_entity"),
+                "temp_min_entity": user_input.get("temp_min_entity"),
+                "temp_max_entity": user_input.get("temp_max_entity"),
                 "humidity_entity": user_input.get("humidity_entity"),
                 "solar_entity": user_input.get("solar_entity"),
                 "solar_sensor_type": user_input.get("solar_sensor_type", "w_m2"),
@@ -241,28 +249,67 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            zone_id = str(uuid.uuid4())
+            zone_name = str(user_input["zone_name"]).strip()
             soil_type = str(user_input["soil_type"])
             root_depth_dm = int(user_input["root_depth_dm"])
-            nfk_max = SOIL_TYPES[soil_type] * root_depth_dm
+            kc = float(user_input["kc"])
+            schwellwert = int(user_input["schwellwert_pct"])
+            zielwert = int(user_input["zielwert_pct"])
+            durchfluss = float(user_input["durchfluss_mm_min"])
+            nfk_start = int(user_input["nfk_start_pct"])
 
-            self._zones[zone_id] = {
-                "zone_name": str(user_input["zone_name"]),
-                "zone_type": str(user_input["zone_type"]),
-                "valve_entity": str(user_input["valve_entity"]),
-                "kc": float(user_input["kc"]),
-                "soil_type": soil_type,
-                "root_depth_dm": root_depth_dm,
-                "schwellwert_pct": int(user_input["schwellwert_pct"]),
-                "zielwert_pct": int(user_input["zielwert_pct"]),
-                "durchfluss_mm_min": float(user_input["durchfluss_mm_min"]),
-                "nfk_start_pct": int(user_input["nfk_start_pct"]),
-                "nfk_max": nfk_max,
-            }
-            return self.async_show_menu(
-                step_id="zone_menu",
-                menu_options=["add_zone", "finish"],
-            )
+            # Validate zone name is not empty
+            if not zone_name:
+                errors["zone_name"] = "required"
+
+            # Validate Kc is plausible (0.1 to 2.0)
+            if not 0.1 <= kc <= 2.0:
+                errors["kc"] = "invalid_kc"
+
+            # Validate thresholds
+            if schwellwert <= 0 or schwellwert > 100:
+                errors["schwellwert_pct"] = "invalid_threshold"
+            if zielwert <= 0 or zielwert > 100:
+                errors["zielwert_pct"] = "invalid_threshold"
+            if schwellwert >= zielwert:
+                errors["base"] = "schwellwert_must_be_less_than_zielwert"
+
+            # Validate flow rate
+            if durchfluss <= 0.0:
+                errors["durchfluss_mm_min"] = "invalid_flow"
+
+            # Validate NFK start
+            if not 0 <= nfk_start <= 100:
+                errors["nfk_start_pct"] = "invalid_nfk_start"
+
+            # Check for duplicate zone names
+            if not errors:
+                for existing_zone in self._zones.values():
+                    if existing_zone["zone_name"] == zone_name:
+                        errors["zone_name"] = "duplicate_zone_name"
+                        break
+
+            if not errors:
+                zone_id = str(uuid.uuid4())
+                nfk_max = SOIL_TYPES[soil_type] * root_depth_dm
+
+                self._zones[zone_id] = {
+                    "zone_name": zone_name,
+                    "zone_type": str(user_input["zone_type"]),
+                    "valve_entity": str(user_input["valve_entity"]),
+                    "kc": kc,
+                    "soil_type": soil_type,
+                    "root_depth_dm": root_depth_dm,
+                    "schwellwert_pct": schwellwert,
+                    "zielwert_pct": zielwert,
+                    "durchfluss_mm_min": durchfluss,
+                    "nfk_start_pct": nfk_start,
+                    "nfk_max": nfk_max,
+                }
+                return self.async_show_menu(
+                    step_id="zone_menu",
+                    menu_options=["add_zone", "finish"],
+                )
 
         return self.async_show_form(
             step_id="zone",

@@ -626,7 +626,9 @@ async def test_zone_done_clears_cs_and_runs_next(hass: HomeAssistant, sample_ent
 
 @pytest.mark.usefixtures("enable_custom_integrations")
 async def test_zone_done_handles_cycle_and_soak(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
-    """Test that zone_done handles C&S by decrementing and requeuing."""
+    """Test that zone_done handles C&S by scheduling via async_track_point_in_time."""
+    from unittest.mock import call
+
     coord = await _setup_coordinator(hass, sample_entry)
     try:
         hass.states.async_set("switch.mv1", "on")
@@ -636,12 +638,18 @@ async def test_zone_done_handles_cycle_and_soak(hass: HomeAssistant, sample_entr
         coord.running = QueueItem("z1", 30.0, 2, 10.0, started_at=datetime.now(UTC))
 
         with patch.object(coord, "_valve_off_then_trafo_check", new_callable=AsyncMock):
-            with patch("asyncio.sleep", new_callable=AsyncMock):
-                with patch.object(coord, "async_enqueue_start", new_callable=AsyncMock) as mock_enqueue:
-                    await coord._zone_done()
+            with patch("custom_components.smartgardn_et0.coordinator.async_track_point_in_time") as mock_track:
+                # Mock returns a dummy unsubscriber function
+                mock_track.return_value = MagicMock()
 
-                    # Should requeue with decremented cs_remaining
-                    mock_enqueue.assert_called_once_with("z1", 30.0, 1, 10.0)
+                await coord._zone_done()
+
+                # Should register async_track_point_in_time for the C&S pause
+                assert mock_track.called
+                # Check that _zone_cs_pause_done callback is registered
+                call_args = mock_track.call_args
+                assert call_args[0][0] == coord.hass
+                assert call_args[0][2] is not None  # pause_end time
     finally:
         await coord.async_shutdown()
 
