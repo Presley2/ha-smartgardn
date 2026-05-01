@@ -12,4 +12,4 @@ Automates irrigation zones using daily NFK (soil water balance) and ET₀ (refer
 - Optional transformer sequencing with cycle & soak support
 - Frost protection and power-loss recovery
 
-See the [README](https://github.com/michaelrichter/ha-smartgardn-et0#readme) for full documentation.
+See the [README](https://github.com/Presley2/ha-smartgardn#readme) for full documentation.

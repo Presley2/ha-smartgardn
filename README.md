@@ -6,7 +6,7 @@
 [![Home Assistant: 2024.10+](https://img.shields.io/badge/Home%20Assistant-2024.10+-green)](https://www.home-assistant.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![HACS: Custom Integration](https://img.shields.io/badge/HACS-Custom%20Integration-blue)](https://hacs.xyz/)
-[![GitHub: michaelrichter/ha-smartgardn-et0](https://img.shields.io/badge/GitHub-michaelrichter%2Fha--smartgardn--et0-gray)](https://github.com/michaelrichter/ha-smartgardn-et0)
+[![GitHub: Presley2/ha-smartgardn](https://img.shields.io/badge/GitHub-Presley2%2Fha--smartgardn-gray)](https://github.com/Presley2/ha-smartgardn)
 
 ## 🌾 Features
 
@@ -48,7 +48,7 @@
 ### Via HACS (Recommended)
 1. Settings → Devices & Services → **HACS**
 2. Click **Custom repositories**
-3. Add URL: `https://github.com/michaelrichter/ha-smartgardn-et0`
+3. Add URL: `https://github.com/Presley2/ha-smartgardn`
 4. Select category: **Integration**
 5. Search for "SmartGardn ET₀" → Install → **Restart Home Assistant**
 6. Settings → Devices & Services → **Create Integration** → "SmartGardn ET₀"
@@ -219,7 +219,7 @@ python -m pytest tests/ --cov=custom_components/smartgardn_et0
 ## 🐛 Issues & Support
 
 Found a bug? Have a feature request?
-- **Report issues**: [GitHub Issues](https://github.com/michaelrichter/ha-smartgardn-et0/issues)
+- **Report issues**: [GitHub Issues](https://github.com/Presley2/ha-smartgardn/issues)
 - **Discuss**: [Home Assistant Community](https://community.home-assistant.io/)
 
 ---

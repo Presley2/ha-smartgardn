@@ -6,7 +6,7 @@ This document tracks repository readiness for HACS inclusion.
 
 | Requirement | Status | Details |
 |---|---|---|
-| Public GitHub repository | ✅ | https://github.com/michaelrichter/ha-smartgardn-et0 |
+| Public GitHub repository | ✅ | https://github.com/Presley2/ha-smartgardn |
 | Default branch | ✅ | `main` |
 | Issues enabled | ✅ | Enabled in repository settings |
 | Active repository | ✅ | Not archived |
@@ -33,8 +33,8 @@ Current key fields from `manifest.json`:
   "domain": "smartgardn_et0",
   "name": "SmartGardn ET₀",
   "version": "0.2.1",
-  "documentation": "https://github.com/michaelrichter/ha-smartgardn-et0",
-  "issue_tracker": "https://github.com/michaelrichter/ha-smartgardn-et0/issues",
+  "documentation": "https://github.com/Presley2/ha-smartgardn",
+  "issue_tracker": "https://github.com/Presley2/ha-smartgardn/issues",
   "config_flow": true
 }
 ```
@@ -64,18 +64,18 @@ Current `hacs.json`:
 ## Submit to HACS
 
 1. Open: https://github.com/hacs/default/issues/new
-2. Create inclusion request for: `michaelrichter/ha-smartgardn-et0`
+2. Create inclusion request for: `Presley2/ha-smartgardn`
 3. Include:
-   - Repository: https://github.com/michaelrichter/ha-smartgardn-et0
+   - Repository: https://github.com/Presley2/ha-smartgardn
    - Latest release URL (tagged version)
    - Short functional summary
 
 ## Handy Links
 
-- Repository: https://github.com/michaelrichter/ha-smartgardn-et0
-- README: https://github.com/michaelrichter/ha-smartgardn-et0#readme
-- Releases: https://github.com/michaelrichter/ha-smartgardn-et0/releases
-- Issues: https://github.com/michaelrichter/ha-smartgardn-et0/issues
+- Repository: https://github.com/Presley2/ha-smartgardn
+- README: https://github.com/Presley2/ha-smartgardn#readme
+- Releases: https://github.com/Presley2/ha-smartgardn/releases
+- Issues: https://github.com/Presley2/ha-smartgardn/issues
 - HACS docs: https://www.hacs.xyz/docs/publish/include/
 
 Last updated: 2026-05-01

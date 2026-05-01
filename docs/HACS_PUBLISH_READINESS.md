@@ -4,7 +4,7 @@ Use this checklist before creating a release tag and submitting to HACS.
 
 ## Metadata
 
-- [ ] Repository URL in `README.md`, `info.md`, and `manifest.json` is `https://github.com/michaelrichter/ha-smartgardn-et0`
+- [ ] Repository URL in `README.md`, `info.md`, and `manifest.json` is `https://github.com/Presley2/ha-smartgardn`
 - [ ] `manifest.json` version matches release version
 - [ ] `custom_components/smartgardn_et0/const.py` version matches release version
 - [ ] `pyproject.toml` version matches release version
