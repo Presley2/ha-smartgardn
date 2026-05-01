@@ -11,6 +11,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
+    LocationSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -27,14 +28,7 @@ _ENTITY_SWITCH = EntitySelector(EntitySelectorConfig(domain="switch"))
 STEP_USER_SCHEMA = vol.Schema(
     {
         vol.Required("name"): TextSelector(),
-        # Wide range so HA's schema doesn't reject out-of-range values before
-        # our custom validator can show a field-level error message.
-        vol.Required("latitude"): NumberSelector(
-            NumberSelectorConfig(min=-1000, max=1000, step=0.001, mode=NumberSelectorMode.BOX)
-        ),
-        vol.Required("longitude"): NumberSelector(
-            NumberSelectorConfig(min=-1000, max=1000, step=0.001, mode=NumberSelectorMode.BOX)
-        ),
+        vol.Required("location"): LocationSelector(),
         vol.Required("elevation"): NumberSelector(
             NumberSelectorConfig(min=-500, max=9000, step=1, mode=NumberSelectorMode.BOX)
         ),
@@ -144,12 +138,18 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             name = str(user_input["name"]).strip()
-            latitude = float(user_input["latitude"])
-            longitude = float(user_input["longitude"])
+            location = user_input.get("location", {})
             elevation = int(user_input["elevation"])
 
+            # Parse location (dict with "latitude" and "longitude" keys)
+            try:
+                latitude = float(location.get("latitude", 0))
+                longitude = float(location.get("longitude", 0))
+            except (ValueError, TypeError):
+                errors["location"] = "invalid_location"
+
             # Validate latitude range
-            if not -90 <= latitude <= 90:
+            if not errors and not -90 <= latitude <= 90:
                 errors["latitude"] = "invalid_latitude"
 
             if not errors:
