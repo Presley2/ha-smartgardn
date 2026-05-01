@@ -10,26 +10,5 @@
   "dependencies": [],
   "requirements": [],
   "config_flow": true,
-  "repairs": "custom_components.irrigation_et0.repairs",
-  "lovelace": {
-    "mode": "yaml",
-    "resources": [
-      {
-        "url": "/static/community/irrigation_et0/overview-card.js",
-        "type": "module"
-      },
-      {
-        "url": "/static/community/irrigation_et0/history-card.js",
-        "type": "module"
-      },
-      {
-        "url": "/static/community/irrigation_et0/settings-card.js",
-        "type": "module"
-      },
-      {
-        "url": "/static/community/irrigation_et0/ansaat-card.js",
-        "type": "module"
-      }
-    ]
-  }
+  "repairs": "custom_components.irrigation_et0.repairs"
 }

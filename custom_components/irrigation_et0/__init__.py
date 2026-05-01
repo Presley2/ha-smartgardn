@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
-from homeassistant.components.lovelace import async_load_dashboard
+from homeassistant.components.http import StaticPathConfig
 
 from custom_components.irrigation_et0.const import (
     DOMAIN,
@@ -19,38 +21,58 @@ from custom_components.irrigation_et0.const import (
 from custom_components.irrigation_et0.coordinator import IrrigationCoordinator
 from custom_components.irrigation_et0.migration import async_setup_migration_service
 
+_LOVELACE_CARDS = [
+    "overview-card.js",
+    "history-card.js",
+    "settings-card.js",
+    "ansaat-card.js",
+]
+_URL_BASE = "/irrigation_et0_cards"
+
 
 async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
-    """Register Lovelace custom card resources."""
+    """Register static path and Lovelace resources."""
+    # 1. Serve the www/ directory under /irrigation_et0_cards
+    www_path = Path(__file__).parent / "www"
+    if www_path.is_dir():
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(_URL_BASE, str(www_path), cache_headers=False)
+        ])
+
+    # 2. Register resources in Lovelace (storage mode only)
+    lovelace_data = hass.data.get("lovelace")
+    if not lovelace_data:
+        return
+
+    resource_collection = lovelace_data.get("resources")
+    if resource_collection is None:
+        return
+
+    # Only works in storage mode; skip YAML mode (read-only)
     try:
-        lovelace_config = await async_load_dashboard(hass, "lovelace")
-        if not lovelace_config:
-            return
+        from homeassistant.components.lovelace.resources import ResourceStorageCollection
+        if not isinstance(resource_collection, ResourceStorageCollection):
+            return  # YAML mode
+    except ImportError:
+        return
 
-        resources = lovelace_config.get("resources", [])
-        cards = [
-            {"url": "/static/community/irrigation_et0/overview-card.js", "type": "module"},
-            {"url": "/static/community/irrigation_et0/history-card.js", "type": "module"},
-            {"url": "/static/community/irrigation_et0/settings-card.js", "type": "module"},
-            {"url": "/static/community/irrigation_et0/ansaat-card.js", "type": "module"},
-        ]
+    # Ensure collection is loaded from disk
+    if not getattr(resource_collection, "loaded", False):
+        await resource_collection.async_load()
+        resource_collection.loaded = True
 
-        # Check if resources already exist
-        existing_urls = {r.get("url") for r in resources}
-        needs_update = False
+    existing_urls = {item.get("url") for item in resource_collection.async_items()}
 
-        for card in cards:
-            if card["url"] not in existing_urls:
-                resources.append(card)
-                needs_update = True
-
-        if needs_update:
-            lovelace_config["resources"] = resources
-            # Save updated config (if storing in storage)
-            # Note: This is a simplified approach; full implementation depends on HA version
-    except Exception as err:
-        # Silently fail — Lovelace resources are optional
-        pass
+    for js_file in _LOVELACE_CARDS:
+        url = f"{_URL_BASE}/{js_file}"
+        if url not in existing_urls:
+            try:
+                await resource_collection.async_create_item({
+                    "res_type": "module",
+                    "url": url,
+                })
+            except Exception:
+                pass  # Silently fail if resource already exists
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
