@@ -31,6 +31,12 @@ Thank you for your interest in contributing! This guide explains how to set up t
    pip install -r requirements-dev.txt
    ```
 
+4. **Set up git hooks:**
+   ```bash
+   python scripts/setup_hooks.py
+   ```
+   This installs pre-commit hooks that automatically sync card files.
+
 ---
 
 ## Code Style

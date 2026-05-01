@@ -35,52 +35,14 @@ export class IrrigationHistoryCard extends LitElement {
   }
 
   _getZoneHistory(zoneId) {
-    if (!this.hass || !this.config?.entry_id) {
-      return {
-        labels: [],
-        nfk: [],
-        etc: [],
-        regen: [],
-        beregnung: [],
-      };
-    }
-    const entryId = this.config.entry_id;
-    const sensorId = `sensor.${entryId}_${zoneId}_nfk`;
-    const sensor = this.hass.states[sensorId];
-    const verlauf = sensor?.attributes?.verlauf || [];
-
+    // This would normally fetch from diagnostics or coordinator storage
+    // For now, return empty mock structure
     return {
-      labels: verlauf.map((e) => e.datum),
-      nfk: verlauf.map((e) => parseFloat(e.nfk_ende || 0)),
-      etc: verlauf.map((e) => parseFloat(e.etc || 0)),
-      regen: verlauf.map((e) => parseFloat(e.regen || 0)),
-      beregnung: verlauf.map((e) => parseFloat(e.beregnung || 0)),
-    };
-  }
-
-  _getForecastData() {
-    if (!this.hass || !this.config?.entry_id) return null;
-    const entryId = this.config.entry_id;
-    const et0_morgen = this.hass.states[`sensor.${entryId}_et0_prognose_morgen`];
-    const et0_uebermorgen = this.hass.states[`sensor.${entryId}_et0_prognose_uebermorgen`];
-    const et0_tag3 = this.hass.states[`sensor.${entryId}_et0_prognose_tag3`];
-    const regen_morgen = this.hass.states[`sensor.${entryId}_regen_prognose_morgen`];
-    const regen_uebermorgen = this.hass.states[`sensor.${entryId}_regen_prognose_uebermorgen`];
-    const regen_tag3 = this.hass.states[`sensor.${entryId}_regen_prognose_tag3`];
-
-    if (!et0_morgen || !regen_morgen) return null;
-
-    return {
-      et0: [
-        parseFloat(et0_morgen?.state || 0),
-        parseFloat(et0_uebermorgen?.state || 0),
-        parseFloat(et0_tag3?.state || 0),
-      ],
-      regen: [
-        parseFloat(regen_morgen?.state || 0),
-        parseFloat(regen_uebermorgen?.state || 0),
-        parseFloat(regen_tag3?.state || 0),
-      ],
+      labels: [],
+      nfk: [],
+      etc: [],
+      regen: [],
+      beregnung: [],
     };
   }
 
@@ -96,28 +58,21 @@ export class IrrigationHistoryCard extends LitElement {
     }
 
     // Simple SVG chart for water balance over time
-    const width = 700;
+    const width = 600;
     const height = 300;
     const padding = 40;
     const graphWidth = width - 2 * padding;
     const graphHeight = height - 2 * padding;
 
     // Find max value for scaling
-    const forecast = this._getForecastData();
     const allValues = [
       ...history.nfk,
       ...history.etc,
       ...history.regen,
       ...history.beregnung,
-      ...(forecast?.et0 || []),
-      ...(forecast?.regen || []),
     ];
     const maxValue = Math.max(...allValues.map(Number), 100);
     const scale = graphHeight / maxValue;
-
-    // Position of "today" separator (end of history)
-    const historyWidth = (history.labels.length / (history.labels.length + 3)) * graphWidth;
-    const todayX = padding + historyWidth;
 
     return html`
       <svg viewBox="0 0 ${width} ${height}" class="chart-svg">
@@ -127,18 +82,15 @@ export class IrrigationHistoryCard extends LitElement {
         <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height - padding}" class="grid-line" />
         <line x1="${width - padding}" y1="${padding}" x2="${width - padding}" y2="${height - padding}" class="grid-line" />
 
-        <!-- Today separator (dashed vertical line) -->
-        <line x1="${todayX}" y1="${padding}" x2="${todayX}" y2="${height - padding}" class="today-separator" stroke-dasharray="2,2" />
-
         <!-- NFK line (green) -->
         <polyline
-          points="${this._generatePolylinePoints(history.nfk, padding, height - padding, historyWidth, scale)}"
+          points="${this._generatePolylinePoints(history.nfk, padding, height - padding, graphWidth, scale)}"
           class="line nfk-line"
         />
 
         <!-- ETc line (red dashed) -->
         <polyline
-          points="${this._generatePolylinePoints(history.etc, padding, height - padding, historyWidth, scale)}"
+          points="${this._generatePolylinePoints(history.etc, padding, height - padding, graphWidth, scale)}"
           class="line etc-line"
         />
 
@@ -146,7 +98,7 @@ export class IrrigationHistoryCard extends LitElement {
         ${history.regen.map(
           (val, idx) => html`
             <rect
-              x="${padding + (idx / history.regen.length) * historyWidth + 2}"
+              x="${padding + (idx / history.regen.length) * graphWidth + 2}"
               y="${height - padding - Number(val) * scale}"
               width="2"
               height="${Number(val) * scale}"
@@ -159,7 +111,7 @@ export class IrrigationHistoryCard extends LitElement {
         ${history.beregnung.map(
           (val, idx) => html`
             <rect
-              x="${padding + (idx / history.beregnung.length) * historyWidth + 5}"
+              x="${padding + (idx / history.beregnung.length) * graphWidth + 5}"
               y="${height - padding - Number(val) * scale}"
               width="2"
               height="${Number(val) * scale}"
@@ -168,49 +120,23 @@ export class IrrigationHistoryCard extends LitElement {
           `
         )}
 
-        <!-- Forecast section (dashed lines) -->
-        ${forecast
-          ? html`
-              <!-- ET₀ forecast line (green dashed) -->
-              <polyline
-                points="${this._generateForecastPolylinePoints(forecast.et0, todayX, height - padding, graphWidth - historyWidth, scale)}"
-                class="line nfk-line forecast-line"
-              />
-              <!-- Rain forecast bars (blue) -->
-              ${forecast.regen.map(
-                (val, idx) => html`
-                  <rect
-                    x="${todayX + (idx / forecast.regen.length) * (graphWidth - historyWidth) + 2}"
-                    y="${height - padding - Number(val) * scale}"
-                    width="2"
-                    height="${Number(val) * scale}"
-                    class="bar rain-bar forecast-bar"
-                  />
-                `
-              )}
-            `
-          : ''}
-
         <!-- Y-axis labels -->
         <text x="${padding - 30}" y="${height - padding + 5}" class="axis-label">0</text>
         <text x="${padding - 35}" y="${padding + 5}" class="axis-label">${Math.round(maxValue)}</text>
 
         <!-- Legend -->
-        <g transform="translate(${width - 180}, ${padding + 10})">
+        <g transform="translate(${width - 150}, ${padding + 10})">
           <line x1="0" y1="0" x2="15" y2="0" class="nfk-line" stroke-width="2" />
-          <text x="20" y="5" font-size="11">NFK</text>
+          <text x="20" y="5" font-size="12">NFK</text>
 
-          <line x1="0" y1="18" x2="15" y2="18" class="etc-line" stroke-width="2" />
-          <text x="20" y="23" font-size="11">ETc</text>
+          <line x1="0" y1="20" x2="15" y2="20" class="etc-line" stroke-width="2" />
+          <text x="20" y="25" font-size="12">ETc</text>
 
-          <rect x="0" y="34" width="6" height="6" class="rain-bar" />
-          <text x="20" y="41" font-size="11">Regen</text>
+          <rect x="0" y="40" width="8" height="8" class="rain-bar" />
+          <text x="20" y="47" font-size="12">Regen</text>
 
-          <rect x="0" y="52" width="6" height="6" class="irrigation-bar" />
-          <text x="20" y="59" font-size="11">Ber.</text>
-
-          <line x1="0" y1="70" x2="15" y2="70" class="nfk-line forecast-line" stroke-width="2" stroke-dasharray="3,3" />
-          <text x="20" y="75" font-size="11">Prognose</text>
+          <rect x="0" y="60" width="8" height="8" class="irrigation-bar" />
+          <text x="20" y="67" font-size="12">Ber.</text>
         </g>
       </svg>
     `;
@@ -223,17 +149,6 @@ export class IrrigationHistoryCard extends LitElement {
       .map(
         (val, idx) =>
           `${paddingX + idx * pointSpacing},${baselineY - Number(val) * scale}`
-      )
-      .join(' ');
-  }
-
-  _generateForecastPolylinePoints(values, startX, baselineY, graphWidth, scale) {
-    if (!values || values.length === 0) return '';
-    const pointSpacing = graphWidth / (values.length - 1 || 1);
-    return values
-      .map(
-        (val, idx) =>
-          `${startX + idx * pointSpacing},${baselineY - Number(val) * scale}`
       )
       .join(' ');
   }
@@ -352,20 +267,6 @@ export class IrrigationHistoryCard extends LitElement {
       .etc-line {
         stroke: var(--chart-color-etc);
         stroke-dasharray: 4,4;
-      }
-
-      .forecast-line {
-        stroke-dasharray: 3,3;
-        opacity: 0.7;
-      }
-
-      .forecast-bar {
-        opacity: 0.5;
-      }
-
-      .today-separator {
-        stroke: var(--divider-color);
-        opacity: 0.5;
       }
 
       .bar {

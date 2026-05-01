@@ -1,0 +1,18 @@
+#!/bin/bash
+# Pre-commit hook to sync card files
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+# Sync cards before commit
+python3 scripts/sync_cards.py
+
+# Check if www files changed
+if git diff --cached --quiet -- "custom_components/smartgardn_et0/www/*"; then
+    echo "✓ Card files are synced"
+else
+    echo "⚠️ Card files were updated - staging them..."
+    git add custom_components/smartgardn_et0/www/*-card.js
+fi
+
+exit 0

@@ -39,46 +39,57 @@ async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
     """Register static path and Lovelace resources."""
     # 1. Serve the www/ directory under /smartgardn_et0_cards
     www_path = Path(__file__).parent / "www"
-    if www_path.is_dir() and hass.http:
-        # Avoid hard setup failure if HA already knows this static path.
-        with contextlib.suppress(Exception):
-            await hass.http.async_register_static_paths([
-                StaticPathConfig(_URL_BASE, str(www_path), cache_headers=False)
-            ])
-            _LOGGER.debug(f"Registered static path: {_URL_BASE} -> {www_path}")
+    if not www_path.is_dir():
+        _LOGGER.warning(f"www directory not found at {www_path}")
+        return
 
-    # 2. Register resources in Lovelace (storage mode only)
+    if not hass.http:
+        _LOGGER.warning("HTTP component not available")
+        return
+
+    # Register static path - this is the core requirement
+    try:
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(_URL_BASE, str(www_path), cache_headers=False)
+        ])
+        _LOGGER.info(f"✓ Registered static path: {_URL_BASE} -> {www_path}")
+    except Exception as e:
+        _LOGGER.error(f"Failed to register static path: {e}")
+        return
+
+    # 2. ALSO register via Lovelace resources (for Storage Mode support)
+    # This is best-effort and won't fail if not available
+    await _async_try_register_lovelace_storage(hass)
+
+
+async def _async_try_register_lovelace_storage(hass: HomeAssistant) -> None:
+    """Try to register in Lovelace storage collection (Storage Mode only)."""
     lovelace_data = hass.data.get("lovelace")
     if not lovelace_data:
-        _LOGGER.debug("Lovelace data not available - using YAML mode or Lovelace not loaded")
         return
 
     resource_collection = lovelace_data.get("resources")
     if resource_collection is None:
-        _LOGGER.debug("No resource collection found in lovelace data")
         return
 
-    # Only works in storage mode; skip YAML mode (read-only)
+    # Only works in storage mode
     try:
         from homeassistant.components.lovelace.resources import ResourceStorageCollection
         if not isinstance(resource_collection, ResourceStorageCollection):
-            _LOGGER.info("Lovelace in YAML mode - cards must be manually registered in ui-lovelace.yaml")
-            return  # YAML mode
-    except ImportError:
-        _LOGGER.debug("Could not import ResourceStorageCollection")
+            return
+    except (ImportError, AttributeError):
         return
 
-    # Ensure collection is loaded from disk
+    # Ensure loaded
     if not getattr(resource_collection, "loaded", False):
         try:
             await resource_collection.async_load()
             resource_collection.loaded = True
-        except Exception as e:
-            _LOGGER.warning(f"Failed to load resource collection: {e}")
+        except Exception:
             return
 
+    # Register each card
     existing_urls = {item.get("url") for item in resource_collection.async_items()}
-
     for js_file in _LOVELACE_CARDS:
         url = f"{_URL_BASE}/{js_file}"
         if url not in existing_urls:
@@ -87,13 +98,16 @@ async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
                     "res_type": "module",
                     "url": url,
                 })
-                _LOGGER.debug(f"Registered Lovelace card: {url}")
-            except Exception as e:
-                _LOGGER.warning(f"Failed to register card {url}: {e}")
+                _LOGGER.debug(f"Registered Lovelace resource: {url}")
+            except Exception:
+                pass
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up smartgardn_et0 from a config entry."""
+    # Register Lovelace custom cards FIRST (so they're available before UI loads)
+    await _async_register_lovelace_resources(hass)
+
     coordinator = IrrigationCoordinator(hass, entry)
     await coordinator.async_setup()
     await coordinator.async_config_entry_first_refresh()
@@ -101,9 +115,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {"coordinator": coordinator}
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     entry.async_on_unload(coordinator.async_shutdown)
-
-    # Register Lovelace custom cards
-    await _async_register_lovelace_resources(hass)
 
     # Register hub device
     dev_reg = dr.async_get(hass)
