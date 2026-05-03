@@ -29,22 +29,17 @@ from custom_components.smartgardn_et0.const import (
     TRAFO_DELAY_S,
     WEEKDAYS,
 )
-from custom_components.smartgardn_et0.et0_calculator import (
-    calc_ka,
-    convert_solar_to_w_m2,
-)
+from custom_components.smartgardn_et0.et0_calculator import calc_ka
 from custom_components.smartgardn_et0.gts_calculator import gts_increment, gts_should_reset
 from custom_components.smartgardn_et0.storage import IrrigationStorage, StorageData
 from custom_components.smartgardn_et0.water_balance import (
     calc_daily_balance,
     calc_etc,
-    needs_watering,
 )
 from custom_components.smartgardn_et0.weather.forecast import fetch_dwd_forecast
 from custom_components.smartgardn_et0.weather.sensors import get_daily_minmax, read_sensor
 from custom_components.smartgardn_et0.irrigation.et0 import compute_et0_with_fallback
 from custom_components.smartgardn_et0.utils.scheduling import (
-    compute_next_start_ansaat,
     compute_next_start_semi,
     compute_next_start_voll,
 )
@@ -471,11 +466,14 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         if self.running.cs_remaining > 0:
             self.running.cs_remaining -= 1
             pause_end = datetime.now(UTC) + timedelta(minutes=self.running.cs_pause_min)
-            unsub = async_track_point_in_time(
-                self.hass,
-                partial(self._zone_cs_pause_done, zone_id, self.running.dauer_min, self.running.cs_remaining, self.running.cs_pause_min),
-                pause_end
+            callback = partial(
+                self._zone_cs_pause_done,
+                zone_id,
+                self.running.dauer_min,
+                self.running.cs_remaining,
+                self.running.cs_pause_min,
             )
+            unsub = async_track_point_in_time(self.hass, callback, pause_end)
             self._unsubs.append(unsub)
         else:
             # Fire zone_finished event
