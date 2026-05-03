@@ -20,7 +20,6 @@ from homeassistant.helpers.event import (
     async_track_time_interval,
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.components.recorder import get_instance
 
 from custom_components.smartgardn_et0.const import (
     DOMAIN,
@@ -44,6 +43,8 @@ from custom_components.smartgardn_et0.water_balance import (
     calc_etc,
     needs_watering,
 )
+from custom_components.smartgardn_et0.weather.sensors import get_daily_minmax, read_sensor
+from custom_components.smartgardn_et0.weather.forecast import fetch_dwd_forecast
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -250,72 +251,6 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 zone_data["scheduling"]["running_since"] = None
                 await self.storage.async_save_immediate(self._storage_data)
 
-    async def _get_daily_minmax(
-        self, entity_id: str | None, start_time: datetime | None = None
-    ) -> tuple[float | None, float | None]:
-        """Read min/max values from HA history for a sensor.
-
-        Args:
-            entity_id: The sensor entity ID
-            start_time: Start of window (default: today 00:00)
-
-        Returns:
-            (min_value, max_value) or (None, None) if no data available
-        """
-        if not entity_id:
-            return None, None
-
-        if start_time is None:
-            start_time = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-
-        try:
-            recorder = get_instance(self.hass)
-            if not recorder or not recorder.async_block_till_done:
-                _LOGGER.warning("Recorder not available for %s", entity_id)
-                return None, None
-
-            # Query HA history with timeout to prevent blocking coordinator
-            try:
-                history = await asyncio.wait_for(
-                    self.hass.loop.run_in_executor(
-                        None,
-                        recorder.history.get_significant_states,
-                        self.hass,
-                        start_time,
-                        None,
-                        [entity_id],
-                        False,
-                    ),
-                    timeout=5.0
-                )
-            except asyncio.TimeoutError:
-                _LOGGER.warning("Recorder timeout for history of %s, skipping history", entity_id)
-                return None, None
-
-            if not history or entity_id not in history:
-                _LOGGER.debug("No history data for %s", entity_id)
-                return None, None
-
-            states = history[entity_id]
-            values = []
-            for state_obj in states:
-                try:
-                    val = float(state_obj.state)
-                    if val is not None:
-                        values.append(val)
-                except (ValueError, TypeError):
-                    pass
-
-            if not values:
-                _LOGGER.debug("No numeric values in history for %s", entity_id)
-                return None, None
-
-            return min(values), max(values)
-
-        except Exception as err:
-            _LOGGER.error("Error reading history for %s: %s", entity_id, err)
-            return None, None
-
     async def _compute_et0_with_fallback(self) -> tuple[float, str, bool]:
         """Phase 5.3: Compute ET0 with fallback chain.
 
@@ -326,11 +261,11 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         # If new single temp_entity is configured, get min/max from history
         temp_entity = self.entry.data.get("temp_entity")
         if temp_entity:
-            t_min, t_max = await self._get_daily_minmax(temp_entity)
+            t_min, t_max = await get_daily_minmax(self.hass, temp_entity)
         else:
             # Fallback to old min/max entities for backwards compatibility
-            t_min = self._read_sensor(self.entry.data.get("temp_min_entity"))
-            t_max = self._read_sensor(self.entry.data.get("temp_max_entity"))
+            t_min = read_sensor(self.hass, self.entry.data.get("temp_min_entity"))
+            t_max = read_sensor(self.hass, self.entry.data.get("temp_max_entity"))
 
         if not t_min or not t_max:
             _LOGGER.error("No temperature data, using last known or 0")
@@ -345,17 +280,17 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             # Similarly, get humidity min/max from history if single entity is configured
             humidity_entity = self.entry.data.get("humidity_entity")
             if humidity_entity:
-                rh_min, rh_max = await self._get_daily_minmax(humidity_entity)
+                rh_min, rh_max = await get_daily_minmax(self.hass, humidity_entity)
             else:
-                rh_min = self._read_sensor(self.entry.data.get("humidity_min_entity"))
-                rh_max = self._read_sensor(self.entry.data.get("humidity_max_entity"))
+                rh_min = read_sensor(self.hass, self.entry.data.get("humidity_min_entity"))
+                rh_max = read_sensor(self.hass, self.entry.data.get("humidity_max_entity"))
 
             # Read solar and convert based on sensor type
-            solar_raw = self._read_sensor(self.entry.data.get("solar_entity"))
+            solar_raw = read_sensor(self.hass, self.entry.data.get("solar_entity"))
             solar_sensor_type = self.entry.data.get("solar_sensor_type", "w_m2")
             solar = convert_solar_to_w_m2(solar_raw, solar_sensor_type) if solar_raw else None
 
-            wind = self._read_sensor(self.entry.data.get("wind_entity"))
+            wind = read_sensor(self.hass, self.entry.data.get("wind_entity"))
 
             if all(x is not None for x in [rh_min, rh_max, solar, wind]):
                 et0 = calc_et0_fao56(
@@ -669,7 +604,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         await self._catch_up_missed_days()
 
         # Step 1: Read weather sensors and rain
-        rain = self._read_sensor(data.get("rain_entity"))
+        rain = read_sensor(self.hass, data.get("rain_entity"))
 
         # Phase 5.3: Compute ET0 with fallback chain
         et0, et_method, et_fallback_active = await self._compute_et0_with_fallback()
@@ -678,9 +613,9 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         # Get t_max from new single temp_entity or fallback to old temp_max_entity
         temp_entity = data.get("temp_entity")
         if temp_entity:
-            _, t_max = await self._get_daily_minmax(temp_entity)
+            _, t_max = await get_daily_minmax(self.hass, temp_entity)
         else:
-            t_max = self._read_sensor(data.get("temp_max_entity"))
+            t_max = read_sensor(self.hass, data.get("temp_max_entity"))
         ka = calc_ka(t_max if t_max else 20.0)
 
         # Step 2: For each zone, compute ETc and NFK balance (LAWN only, not DRIP)
@@ -734,10 +669,10 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         # Get t_min and t_max from history to compute average temperature
         temp_entity = data.get("temp_entity")
         if temp_entity:
-            t_min, t_max = await self._get_daily_minmax(temp_entity)
+            t_min, t_max = await get_daily_minmax(self.hass, temp_entity)
         else:
-            t_min = self._read_sensor(data.get("temp_min_entity"))
-            t_max = self._read_sensor(data.get("temp_max_entity"))
+            t_min = read_sensor(self.hass, data.get("temp_min_entity"))
+            t_max = read_sensor(self.hass, data.get("temp_max_entity"))
 
         # Calculate average temperature for GTS
         if t_min is not None and t_max is not None:
@@ -749,7 +684,12 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         globals_data["gts"] += gts_inc
         globals_data["letzte_et0_berechnung"] = datetime.now(UTC).isoformat()
 
-        forecast = await self._fetch_dwd_forecast()
+        forecast = await fetch_dwd_forecast(
+            self.hass,
+            self.entry.data.get("dwd_lat_override") or self.entry.data["latitude"],
+            self.entry.data.get("dwd_lon_override") or self.entry.data["longitude"],
+            self.entry.data.get("elevation", 0),
+        )
         if self.data is None:
             self.data = {}
         self.data["dwd_forecast"] = forecast
@@ -794,17 +734,6 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
                 "smartgardn_et0_fallback_active", {"method": et_method}
             )
 
-    def _read_sensor(self, entity_id: str | None) -> float | None:
-        """Read a sensor value, return None if unavailable or not a number."""
-        if not entity_id:
-            return None
-        state = self.hass.states.get(entity_id)
-        if not state or state.state in ("unknown", "unavailable"):
-            return None
-        try:
-            return float(state.state)
-        except ValueError:
-            return None
 
     async def _trigger_zone_start(self, zone_id: str) -> None:
         """Called when a scheduled start time is reached."""
@@ -1094,19 +1023,3 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         _LOGGER.info("Manual start zone %s for %.1f min", zone_id, dauer_min)
         await self.async_enqueue_start(zone_id, dauer_min)
 
-    async def _fetch_dwd_forecast(self) -> list:
-        """Fetch DWD forecast if enabled."""
-        if not self.entry.data.get("dwd_forecast_enabled", False):
-            return []
-
-        try:
-            lat = self.entry.data.get("dwd_lat_override") or self.entry.data["latitude"]
-            lon = self.entry.data.get("dwd_lon_override") or self.entry.data["longitude"]
-            elev = self.entry.data.get("elevation", 0)
-
-            from custom_components.smartgardn_et0.dwd_forecast import fetch_dwd_forecast
-
-            return await fetch_dwd_forecast(self.hass, lat, lon, elev)
-        except Exception as err:
-            _LOGGER.warning("DWD forecast failed: %s", err)
-            return []
