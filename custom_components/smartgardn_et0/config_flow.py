@@ -126,16 +126,17 @@ def _build_entry_data(
     hardware: dict[str, Any],
     zones: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
-    # Store single temp_entity as temp_min_entity for backwards compatibility
-    # Coordinator will extract min/max from history automatically
+    # Use single temp_entity (new standard)
+    # Also store as temp_min_entity for backwards compatibility with old configs
     temp_entity = weather.get("temp_entity")
     return {
         "name": anlage_name,
         "latitude": latitude,
         "longitude": longitude,
         "elevation": elevation,
-        "temp_min_entity": temp_entity,  # Single sensor stored here
-        "temp_max_entity": None,  # Not used, but kept for compatibility
+        "temp_entity": temp_entity,
+        "temp_min_entity": temp_entity,  # Backwards compatibility
+        "temp_max_entity": None,  # Not used, coordinator extracts from history
         "humidity_entity": weather.get("humidity_entity"),
         "solar_entity": weather.get("solar_entity"),
         "solar_sensor_type": weather.get("solar_sensor_type", "w_m2"),
