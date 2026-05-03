@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 from pathlib import Path
 
 import voluptuous as vol
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
-from homeassistant.components.http import StaticPathConfig
-
-_LOGGER = logging.getLogger(__name__)
 
 from custom_components.smartgardn_et0.const import (
     DOMAIN,
@@ -26,6 +23,8 @@ from custom_components.smartgardn_et0.const import (
 from custom_components.smartgardn_et0.coordinator import IrrigationCoordinator
 from custom_components.smartgardn_et0.migration import async_setup_migration_service
 
+_LOGGER = logging.getLogger(__name__)
+
 _LOVELACE_CARDS = [
     "overview-card.js",
     "history-card.js",
@@ -36,7 +35,9 @@ _URL_BASE = "/smartgardn_et0_cards"
 _STATIC_PATH_REGISTERED = False  # Track if static path is already registered
 
 
-async def _async_register_lovelace_resources(hass: HomeAssistant, *, skip_static: bool = False) -> None:
+async def _async_register_lovelace_resources(
+    hass: HomeAssistant, *, skip_static: bool = False
+) -> None:
     """Register static path and Lovelace resources.
 
     Args:
@@ -176,7 +177,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=vol.Schema(
                 {
                     vol.Required("zone"): cv.entity_id,
-                    vol.Required("dauer_min"): vol.All(vol.Coerce(float), vol.Range(min=1, max=240)),
+                    vol.Required("dauer_min"): vol.All(
+                        vol.Coerce(float), vol.Range(min=1, max=240)
+                    ),
                 }
             ),
         )
