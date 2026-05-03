@@ -55,6 +55,7 @@ from custom_components.smartgardn_et0.utils.safety import (
     should_activate_frost_lock,
     should_release_frost_lock,
 )
+from custom_components.smartgardn_et0.utils.entity_helpers import extract_zone_id_from_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -876,27 +877,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         Returns:
             The zone_id if successful, None otherwise
         """
-        if not entity_id.startswith("select."):
-            return None
-
-        # Format: select.{entry_id}_{zone_id}_modus
-        try:
-            # Remove 'select.' prefix
-            base = entity_id[len("select."):]
-            # Split off '_modus' suffix
-            if not base.endswith("_modus"):
-                return None
-            base = base[:-len("_modus")]
-
-            # Reverse-engineer: base = {entry_id}_{zone_id}
-            entry_id = self.entry.entry_id
-            if base.startswith(entry_id + "_"):
-                zone_id = base[len(entry_id) + 1:]
-                return zone_id if zone_id else None
-
-            return None
-        except (AttributeError, IndexError):
-            return None
+        return extract_zone_id_from_entity(entity_id)
 
     async def start_zone_manual(self, zone_id: str, dauer_min: float) -> None:
         """Manually start a zone with trafo sequencing through the queue."""
