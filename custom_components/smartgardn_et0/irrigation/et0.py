@@ -47,7 +47,10 @@ async def compute_et0_with_fallback(
 
     if not t_min or not t_max:
         _LOGGER.error("No temperature data, using last known or 0")
-        last_et0 = storage_data["globals"].get("et0_last_known", 0.0) if storage_data else 0.0
+        if storage_data and "globals" in storage_data:
+            last_et0 = storage_data["globals"].get("et0_last_known", 0.0)
+        else:
+            last_et0 = 0.0
         return last_et0, "last_known", True
 
     et_method = entry.data.get("et_methode", "fao56")
@@ -83,7 +86,7 @@ async def compute_et0_with_fallback(
                 entry.data["elevation"],
                 today.timetuple().tm_yday,
             )
-            if storage_data:
+            if storage_data and "globals" in storage_data:
                 storage_data["globals"]["et0_last_known"] = et0
             return et0, "fao56", False
 
@@ -92,7 +95,7 @@ async def compute_et0_with_fallback(
         et0 = calc_et0_hargreaves(
             t_min, t_max, entry.data["latitude"], today.timetuple().tm_yday
         )
-        if storage_data:
+        if storage_data and "globals" in storage_data:
             storage_data["globals"]["et0_last_known"] = et0
         return et0, "hargreaves", True
 
@@ -101,10 +104,13 @@ async def compute_et0_with_fallback(
         et0 = calc_et0_hargreaves(
             t_min, t_max, entry.data["latitude"], today.timetuple().tm_yday
         )
-        if storage_data:
+        if storage_data and "globals" in storage_data:
             storage_data["globals"]["et0_last_known"] = et0
         return et0, "hargreaves", False
 
     # Fallback to last known value
-    last_et0 = storage_data["globals"].get("et0_last_known", 0.0) if storage_data else 0.0
+    if storage_data and "globals" in storage_data:
+        last_et0 = storage_data["globals"].get("et0_last_known", 0.0)
+    else:
+        last_et0 = 0.0
     return last_et0, "last_known", True

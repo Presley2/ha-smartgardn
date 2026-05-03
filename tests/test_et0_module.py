@@ -14,6 +14,7 @@ from custom_components.smartgardn_et0.irrigation.et0 import compute_et0_with_fal
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("enable_custom_integrations")
 async def test_compute_et0_with_fallback_no_temp_data() -> None:
     """Test ET₀ computation with missing temperature data."""
     hass = MagicMock()
@@ -40,6 +41,7 @@ async def test_compute_et0_with_fallback_no_temp_data() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("enable_custom_integrations")
 async def test_compute_et0_hargreaves_fallback() -> None:
     """Test ET₀ computation falls back to Hargreaves when PM inputs missing."""
     hass = MagicMock()
