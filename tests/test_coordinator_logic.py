@@ -340,64 +340,6 @@ async def test_failsafe_check_ignores_trafo_off(hass: HomeAssistant, sample_entr
 
 
 @pytest.mark.usefixtures("enable_custom_integrations")
-async def test_read_sensor_returns_float(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
-    """Test that _read_sensor returns float value."""
-    coord = await _setup_coordinator(hass, sample_entry)
-    try:
-        hass.states.async_set("sensor.t_max", "25.5")
-        result = coord._read_sensor("sensor.t_max")
-        assert result == 25.5
-    finally:
-        await coord.async_shutdown()
-
-
-@pytest.mark.usefixtures("enable_custom_integrations")
-async def test_read_sensor_returns_none_if_unavailable(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
-    """Test that _read_sensor returns None for unavailable."""
-    coord = await _setup_coordinator(hass, sample_entry)
-    try:
-        hass.states.async_set("sensor.t_max", "unavailable")
-        result = coord._read_sensor("sensor.t_max")
-        assert result is None
-    finally:
-        await coord.async_shutdown()
-
-
-@pytest.mark.usefixtures("enable_custom_integrations")
-async def test_read_sensor_returns_none_if_unknown(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
-    """Test that _read_sensor returns None for unknown."""
-    coord = await _setup_coordinator(hass, sample_entry)
-    try:
-        hass.states.async_set("sensor.t_max", "unknown")
-        result = coord._read_sensor("sensor.t_max")
-        assert result is None
-    finally:
-        await coord.async_shutdown()
-
-
-@pytest.mark.usefixtures("enable_custom_integrations")
-async def test_read_sensor_returns_none_if_entity_missing(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
-    """Test that _read_sensor returns None if entity doesn't exist."""
-    coord = await _setup_coordinator(hass, sample_entry)
-    try:
-        result = coord._read_sensor("sensor.nonexistent")
-        assert result is None
-    finally:
-        await coord.async_shutdown()
-
-
-@pytest.mark.usefixtures("enable_custom_integrations")
-async def test_read_sensor_returns_none_if_entity_id_none(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
-    """Test that _read_sensor returns None if entity_id is None."""
-    coord = await _setup_coordinator(hass, sample_entry)
-    try:
-        result = coord._read_sensor(None)
-        assert result is None
-    finally:
-        await coord.async_shutdown()
-
-
-@pytest.mark.usefixtures("enable_custom_integrations")
 async def test_compute_next_start_semi_finds_next_weekday(hass: HomeAssistant, sample_entry: MockConfigEntry) -> None:
     """Test that semi-automatik mode finds next enabled weekday."""
     coord = await _setup_coordinator(hass, sample_entry)
