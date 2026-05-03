@@ -669,21 +669,6 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         cs_pause = self._zone_numbers[zone_id]["cs_pause"]
         await self.async_enqueue_start(zone_id, dauer, cs_zyklen, cs_pause)
 
-    def _should_skip_for_rain(self, target_date_offset: int) -> bool:
-        """True if rain forecast for target day exceeds threshold.
-
-        Args:
-            target_date_offset: 1=tomorrow, 2=day-after-tomorrow
-        """
-        if not self.entry.data.get("dwd_forecast_enabled"):
-            return False
-        forecast = (self.data or {}).get("dwd_forecast", [])
-        threshold = self.entry.data.get("regen_skip_threshold_mm", 10.0)
-        idx = target_date_offset - 1
-        if idx < len(forecast):
-            return forecast[idx].precip_sum >= threshold
-        return False
-
     def _compute_next_start_semi(
         self, zone_id: str, zone_cfg: dict, zone_storage: dict
     ) -> datetime | None:
