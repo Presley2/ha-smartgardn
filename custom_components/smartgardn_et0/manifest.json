@@ -1,7 +1,7 @@
 {
   "domain": "smartgardn_et0",
   "name": "SmartGardn ET₀",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "documentation": "https://github.com/Presley2/ha-smartgardn",
   "issue_tracker": "https://github.com/Presley2/ha-smartgardn/issues",
   "codeowners": ["@michaelrichter"],
