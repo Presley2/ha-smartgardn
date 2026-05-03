@@ -31,8 +31,6 @@ from custom_components.smartgardn_et0.const import (
     WEEKDAYS,
 )
 from custom_components.smartgardn_et0.et0_calculator import (
-    calc_et0_fao56,
-    calc_et0_hargreaves,
     calc_ka,
     convert_solar_to_w_m2,
 )
@@ -43,8 +41,8 @@ from custom_components.smartgardn_et0.water_balance import (
     calc_etc,
     needs_watering,
 )
-from custom_components.smartgardn_et0.weather.sensors import get_daily_minmax, read_sensor
 from custom_components.smartgardn_et0.weather.forecast import fetch_dwd_forecast
+from custom_components.smartgardn_et0.irrigation.et0 import compute_et0_with_fallback
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -250,80 +248,6 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             if zone_data:
                 zone_data["scheduling"]["running_since"] = None
                 await self.storage.async_save_immediate(self._storage_data)
-
-    async def _compute_et0_with_fallback(self) -> tuple[float, str, bool]:
-        """Phase 5.3: Compute ET0 with fallback chain.
-
-        Returns (et0, method_used, fallback_active).
-        """
-        today = date.today()
-
-        # If new single temp_entity is configured, get min/max from history
-        temp_entity = self.entry.data.get("temp_entity")
-        if temp_entity:
-            t_min, t_max = await get_daily_minmax(self.hass, temp_entity)
-        else:
-            # Fallback to old min/max entities for backwards compatibility
-            t_min = read_sensor(self.hass, self.entry.data.get("temp_min_entity"))
-            t_max = read_sensor(self.hass, self.entry.data.get("temp_max_entity"))
-
-        if not t_min or not t_max:
-            _LOGGER.error("No temperature data, using last known or 0")
-            storage = self._storage_data
-            last_et0 = storage["globals"].get("et0_last_known", 0.0) if storage else 0.0
-            return last_et0, "last_known", True
-
-        et_method = self.entry.data.get("et_methode", "fao56")
-
-        # Try primary method (FAO56)
-        if et_method == "fao56":
-            # Similarly, get humidity min/max from history if single entity is configured
-            humidity_entity = self.entry.data.get("humidity_entity")
-            if humidity_entity:
-                rh_min, rh_max = await get_daily_minmax(self.hass, humidity_entity)
-            else:
-                rh_min = read_sensor(self.hass, self.entry.data.get("humidity_min_entity"))
-                rh_max = read_sensor(self.hass, self.entry.data.get("humidity_max_entity"))
-
-            # Read solar and convert based on sensor type
-            solar_raw = read_sensor(self.hass, self.entry.data.get("solar_entity"))
-            solar_sensor_type = self.entry.data.get("solar_sensor_type", "w_m2")
-            solar = convert_solar_to_w_m2(solar_raw, solar_sensor_type) if solar_raw else None
-
-            wind = read_sensor(self.hass, self.entry.data.get("wind_entity"))
-
-            if all(x is not None for x in [rh_min, rh_max, solar, wind]):
-                et0 = calc_et0_fao56(
-                    t_min, t_max, rh_min, rh_max, solar, wind,
-                    self.entry.data["latitude"], self.entry.data["elevation"],
-                    today.timetuple().tm_yday
-                )
-                if self._storage_data:
-                    self._storage_data["globals"]["et0_last_known"] = et0
-                return et0, "fao56", False
-
-            # Fallback to Hargreaves
-            _LOGGER.warning("PM inputs missing, falling back to Hargreaves")
-            et0 = calc_et0_hargreaves(
-                t_min, t_max, self.entry.data["latitude"], today.timetuple().tm_yday
-            )
-            if self._storage_data:
-                self._storage_data["globals"]["et0_last_known"] = et0
-            return et0, "hargreaves", True
-
-        # If primary method is already Hargreaves or other
-        if (et_method == "hargreaves" or et_method == "haude") and t_min and t_max:
-            et0 = calc_et0_hargreaves(
-                t_min, t_max, self.entry.data["latitude"], today.timetuple().tm_yday
-            )
-            if self._storage_data:
-                self._storage_data["globals"]["et0_last_known"] = et0
-            return et0, "hargreaves", False
-
-        # Fallback to last known
-        storage = self._storage_data
-        last_et0 = storage["globals"].get("et0_last_known", 0.0) if storage else 0.0
-        return last_et0, "last_known", True
 
     async def _check_trafo_state(self) -> None:
         """Phase 5.4: Every 5 min, check if trafo is unavailable and create repair if stuck."""
@@ -607,7 +531,9 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         rain = read_sensor(self.hass, data.get("rain_entity"))
 
         # Phase 5.3: Compute ET0 with fallback chain
-        et0, et_method, et_fallback_active = await self._compute_et0_with_fallback()
+        et0, et_method, et_fallback_active = await compute_et0_with_fallback(
+            self.hass, self.entry, self._storage_data
+        )
 
         # Compute Ka (temperature correction factor)
         # Get t_max from new single temp_entity or fallback to old temp_max_entity
