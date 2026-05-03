@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.smartgardn_et0.const import DOMAIN
