@@ -44,6 +44,11 @@ from custom_components.smartgardn_et0.water_balance import (
 from custom_components.smartgardn_et0.weather.forecast import fetch_dwd_forecast
 from custom_components.smartgardn_et0.weather.sensors import get_daily_minmax, read_sensor
 from custom_components.smartgardn_et0.irrigation.et0 import compute_et0_with_fallback
+from custom_components.smartgardn_et0.utils.scheduling import (
+    compute_next_start_ansaat,
+    compute_next_start_semi,
+    compute_next_start_voll,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -691,36 +696,16 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         self, zone_id: str, zone_cfg: dict, zone_storage: dict
     ) -> datetime | None:
         """Compute next start for Semi-Automatik mode."""
-        # Find next enabled weekday starting from tomorrow
         weekdays_enabled = self._zone_weekdays.get(
             zone_id, dict.fromkeys(WEEKDAYS, True)
         )
         start_time = self._zone_times.get(zone_id, {}).get("start", dtime(19, 0))
+        forecast = (self.data or {}).get("dwd_forecast", [])
+        rain_threshold = self.entry.data.get("regen_skip_threshold_mm", 10.0)
 
-        today = date.today()
-        weekday_names = [
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-            "sunday",
-        ]
-        for i in range(1, 8):
-            check_date = today + timedelta(days=i)
-            weekday_name = weekday_names[check_date.weekday()]
-            if weekdays_enabled.get(weekday_name, True):
-                # Check rain forecast for this day (only days 1 and 2)
-                if i <= 2 and self._should_skip_for_rain(i):
-                    _LOGGER.info(
-                        "Zone %s: semi-mode skip day %d, rain forecast >= threshold",
-                        zone_id,
-                        i,
-                    )
-                    continue  # Skip this day, find next
-                return datetime.combine(check_date, start_time, tzinfo=UTC)
-        return None
+        return compute_next_start_semi(
+            zone_id, weekdays_enabled, start_time, forecast, rain_threshold
+        )
 
     def _compute_next_start_voll(
         self, zone_id: str, zone_cfg: dict, zone_storage: dict
@@ -731,26 +716,13 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         schwellwert_pct = self._zone_numbers[zone_id].get(
             "schwellwert", zone_cfg.get("schwellwert_pct", 50)
         )
+        start_time = self._zone_times.get(zone_id, {}).get("start", dtime(19, 0))
+        forecast = (self.data or {}).get("dwd_forecast", [])
+        rain_threshold = self.entry.data.get("regen_skip_threshold_mm", 10.0)
 
-        if needs_watering(nfk_aktuell, nfk_max, schwellwert_pct):
-            # Watering needed — check rain forecast
-            if self._should_skip_for_rain(1):
-                _LOGGER.info(
-                    "Zone %s: skip today, rain forecast >= threshold", zone_id
-                )
-                if self._should_skip_for_rain(2):
-                    _LOGGER.info(
-                        "Zone %s: skip tomorrow too, rain forecast >= threshold", zone_id
-                    )
-                    return None  # Recheck after 2 days
-                # Start day-after-tomorrow
-                start_time = self._zone_times.get(zone_id, {}).get("start", dtime(19, 0))
-                return datetime.combine(
-                    date.today() + timedelta(days=2), start_time, tzinfo=UTC
-                )
-            # No rain expected, start immediately
-            return datetime.now(UTC) + timedelta(minutes=1)
-        return None
+        return compute_next_start_voll(
+            zone_id, nfk_aktuell, nfk_max, schwellwert_pct, start_time, forecast, rain_threshold
+        )
 
     def _compute_next_start_ansaat(
         self, zone_id: str, zone_cfg: dict, zone_storage: dict
