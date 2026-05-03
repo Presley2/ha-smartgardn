@@ -42,6 +42,7 @@ from custom_components.smartgardn_et0.water_balance import (
     needs_watering,
 )
 from custom_components.smartgardn_et0.weather.forecast import fetch_dwd_forecast
+from custom_components.smartgardn_et0.weather.sensors import get_daily_minmax, read_sensor
 from custom_components.smartgardn_et0.irrigation.et0 import compute_et0_with_fallback
 
 _LOGGER = logging.getLogger(__name__)
@@ -422,7 +423,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         self.running.started_at = datetime.now(UTC)
         duration_s = self.running.dauer_min * 60
         if self._storage_data:
-            zone_storage = self._storage_data["zones"].get(zone_id)
+            zone_storage = self._storage_data["zones"].get(self.running.zone_id)
             if zone_storage:
                 zone_storage["scheduling"]["running_since"] = self.running.started_at.isoformat()
                 zone_storage["scheduling"]["active_zone_remaining_min"] = self.running.dauer_min
