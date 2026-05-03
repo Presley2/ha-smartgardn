@@ -28,11 +28,19 @@ jobs:
 
       - name: Run core module tests
         run: |
-          python -m pytest tests/test_gts_calculator.py tests/test_water_balance.py -v
+          python -m pytest tests/test_gts_calculator.py tests/test_water_balance.py tests/test_et0_calculator.py -v
+
+      - name: Run refactored module tests
+        run: |
+          python -m pytest tests/test_weather_module.py tests/test_et0_module.py -v
 
       - name: Run Lovelace card tests
         run: |
           python -m pytest tests/test_lovelace_cards.py -v
+
+      - name: Run coordinator logic tests
+        run: |
+          python -m pytest tests/test_coordinator_logic.py -v
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
