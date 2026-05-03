@@ -33,32 +33,43 @@ _LOVELACE_CARDS = [
     "ansaat-card.js",
 ]
 _URL_BASE = "/smartgardn_et0_cards"
+_STATIC_PATH_REGISTERED = False  # Track if static path is already registered
 
 
-async def _async_register_lovelace_resources(hass: HomeAssistant) -> None:
-    """Register static path and Lovelace resources."""
+async def _async_register_lovelace_resources(hass: HomeAssistant, *, skip_static: bool = False) -> None:
+    """Register static path and Lovelace resources.
+
+    Args:
+        hass: Home Assistant instance
+        skip_static: If True, skip static path registration (already done once per HA session)
+    """
+    global _STATIC_PATH_REGISTERED
+
     # 1. Serve the www/ directory under /smartgardn_et0_cards
-    www_path = Path(__file__).parent / "www"
-    if not www_path.is_dir():
-        _LOGGER.warning(f"www directory not found at {www_path}")
-        return
+    # (Only need to do this ONCE per HA session, not on every config entry reload)
+    if not skip_static and not _STATIC_PATH_REGISTERED:
+        www_path = Path(__file__).parent / "www"
+        if not www_path.is_dir():
+            _LOGGER.warning(f"www directory not found at {www_path}")
+            return
 
-    if not hass.http:
-        _LOGGER.warning("HTTP component not available")
-        return
+        if not hass.http:
+            _LOGGER.warning("HTTP component not available")
+            return
 
-    # Register static path - this is the core requirement
-    try:
-        await hass.http.async_register_static_paths([
-            StaticPathConfig(_URL_BASE, str(www_path), cache_headers=False)
-        ])
-        _LOGGER.info(f"✓ Registered static path: {_URL_BASE} -> {www_path}")
-    except Exception as e:
-        _LOGGER.error(f"Failed to register static path: {e}")
-        return
+        # Register static path - this is the core requirement
+        try:
+            await hass.http.async_register_static_paths([
+                StaticPathConfig(_URL_BASE, str(www_path), cache_headers=False)
+            ])
+            _LOGGER.info(f"✓ Registered static path: {_URL_BASE} -> {www_path}")
+            _STATIC_PATH_REGISTERED = True
+        except Exception as e:
+            _LOGGER.error(f"Failed to register static path: {e}")
+            return
 
     # 2. ALSO register via Lovelace resources (for Storage Mode support)
-    # This is best-effort and won't fail if not available
+    # This can be done on every reload since it's safe/idempotent
     await _async_try_register_lovelace_storage(hass)
 
 
@@ -106,7 +117,8 @@ async def _async_try_register_lovelace_storage(hass: HomeAssistant) -> None:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up smartgardn_et0 from a config entry."""
     # Register Lovelace custom cards FIRST (so they're available before UI loads)
-    await _async_register_lovelace_resources(hass)
+    # Static path is registered only once per HA session (not on every reload)
+    await _async_register_lovelace_resources(hass, skip_static=False)
 
     coordinator = IrrigationCoordinator(hass, entry)
     await coordinator.async_setup()
@@ -208,4 +220,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload entry when options change."""
+    # Re-register Lovelace resources (safe/idempotent, skips static path)
+    await _async_register_lovelace_resources(hass, skip_static=True)
+    # Reload the entry
     await hass.config_entries.async_reload(entry.entry_id)
