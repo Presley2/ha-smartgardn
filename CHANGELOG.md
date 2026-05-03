@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-05-03
+
+### Added
+- **Fully automated Lovelace card registration** — cards now register automatically on installation (zero manual config)
+- **Comprehensive testing infrastructure** — 9 unit tests for card registration, manifest config, and infrastructure
+- **Live card testing script** — `scripts/test_cards_live.py` for verification on Home Assistant instances
+- **Git hook automation** — pre-commit hook auto-syncs card files from src/ to www/
+- **Card synchronization tools** — `scripts/sync_cards.py` and `scripts/setup_hooks.py` for development workflow
+
+### Documentation
+- **QUICKSTART_CARDS.md** — 2-minute getting started guide for users
+- **TESTING_CARDS.md** — comprehensive testing procedures and verification checklist
+- **RELEASE_NOTES_CARDS.md** — technical release notes for the automated card system
+- **IMPLEMENTATION_SUMMARY.md** — complete overview of the automation system
+- **Updated README.md** — added info about automatic card availability
+- **Updated CONTRIBUTING.md** — developer setup with git hooks
+
+### Fixed
+- **Card registration reliability** — improved error handling and logging in `_async_register_lovelace_resources()`
+- **Static path registration order** — moved card registration to run FIRST in `async_setup_entry()` for immediate availability
+- **Lovelace compatibility** — works seamlessly in both Storage Mode and YAML Mode
+
 ## [0.2.1] - 2026-05-01
 
 ### Fixed
