@@ -7,7 +7,6 @@ import contextlib
 import logging
 from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as dtime
 from functools import partial
@@ -49,19 +48,9 @@ from custom_components.smartgardn_et0.utils.scheduling import (
     compute_next_start_semi,
     compute_next_start_voll,
 )
+from custom_components.smartgardn_et0.utils.queue import QueueItem
 
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class QueueItem:
-    """Represents a single irrigation queue entry with Cycle & Soak tracking."""
-
-    zone_id: str
-    dauer_min: float
-    cs_remaining: int  # 0 if no C&S active
-    cs_pause_min: float
-    started_at: datetime | None = None
 
 
 class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-arg]
