@@ -437,7 +437,9 @@ class IrrigationRegenForecastMorgenSensor(CoordinatorEntity[IrrigationCoordinato
         return None
 
 
-class IrrigationRegenForecastUebermorgeSensor(CoordinatorEntity[IrrigationCoordinator], SensorEntity):
+class IrrigationRegenForecastUebermorgeSensor(
+    CoordinatorEntity[IrrigationCoordinator], SensorEntity
+):
     _attr_has_entity_name = True
     _attr_native_unit_of_measurement = "mm"
     _attr_state_class = SensorStateClass.MEASUREMENT

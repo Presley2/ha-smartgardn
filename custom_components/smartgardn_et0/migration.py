@@ -137,7 +137,7 @@ async def async_setup_migration_service(hass, entry_id: str):
                 "; ".join(issues),
             )
             hass.components.persistent_notification.async_create(
-                f"❌ Migration failed:\n" + "\n".join(f"• {issue}" for issue in issues),
+                "❌ Migration failed:\n" + "\n".join(f"• {issue}" for issue in issues),
                 title="Irrigation ET₀: Migration Error",
                 notification_id="irrigation_migration_error",
             )

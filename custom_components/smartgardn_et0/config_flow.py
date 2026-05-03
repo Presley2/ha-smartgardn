@@ -11,7 +11,6 @@ from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
-    LocationSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -407,10 +406,18 @@ class IrrigationOptionsFlow(OptionsFlowWithConfigEntry):
 
         schema = vol.Schema(
             {
-                vol.Required("temp_entity", default=current.get("temp_entity", "")): _ENTITY_SENSOR,
-                vol.Optional("humidity_entity", default=current.get("humidity_entity", "")): _ENTITY_SENSOR,
-                vol.Optional("solar_entity", default=current.get("solar_entity", "")): _ENTITY_SENSOR,
-                vol.Optional("solar_sensor_type", default=current.get("solar_sensor_type", "w_m2")): SelectSelector(
+                vol.Required(
+                    "temp_entity", default=current.get("temp_entity", "")
+                ): _ENTITY_SENSOR,
+                vol.Optional(
+                    "humidity_entity", default=current.get("humidity_entity", "")
+                ): _ENTITY_SENSOR,
+                vol.Optional(
+                    "solar_entity", default=current.get("solar_entity", "")
+                ): _ENTITY_SENSOR,
+                vol.Optional(
+                    "solar_sensor_type", default=current.get("solar_sensor_type", "w_m2")
+                ): SelectSelector(
                     SelectSelectorConfig(
                         options=[
                             "w_m2",   # W/m² (Photodiode, Pyranometer)

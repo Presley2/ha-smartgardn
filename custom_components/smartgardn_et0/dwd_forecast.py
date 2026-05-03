@@ -9,7 +9,7 @@ Weather data sourced from:
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -17,8 +17,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from custom_components.smartgardn_et0.et0_calculator import (
     calc_et0_fao56,
     calc_et0_hargreaves,
-    calc_ka,
-    convert_solar_to_w_m2,
 )
 
 _LOGGER = logging.getLogger(__name__)

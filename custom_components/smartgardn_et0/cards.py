@@ -1,8 +1,5 @@
 """Lovelace card integration for smartgardn_et0."""
 
-from pathlib import Path
-import json
-
 CARDS = {
     "overview-card.js": "Overview: zone status grid with NFK, ETc, rain, irrigation",
     "history-card.js": "History: daily water balance trends per zone",
