@@ -44,8 +44,8 @@ _OPTIONAL_WEATHER_FIELDS = (
 
 STEP_WEATHER_SCHEMA = vol.Schema(
     {
-        vol.Required("temp_min_entity"): _ENTITY_SENSOR,
-        vol.Required("temp_max_entity"): _ENTITY_SENSOR,
+        vol.Optional("temp_min_entity"): _ENTITY_SENSOR,
+        vol.Optional("temp_max_entity"): _ENTITY_SENSOR,
         vol.Optional("humidity_entity"): _ENTITY_SENSOR,
         vol.Optional("solar_entity"): _ENTITY_SENSOR,
         vol.Optional("solar_sensor_type"): SelectSelector(
@@ -210,16 +210,23 @@ class IrrigationConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            self._weather = {
-                "temp_min_entity": user_input.get("temp_min_entity"),
-                "temp_max_entity": user_input.get("temp_max_entity"),
-                "humidity_entity": user_input.get("humidity_entity"),
-                "solar_entity": user_input.get("solar_entity"),
-                "solar_sensor_type": user_input.get("solar_sensor_type", "w_m2"),
-                "wind_entity": user_input.get("wind_entity"),
-                "rain_entity": user_input.get("rain_entity"),
-            }
-            return await self.async_step_hardware()
+            # At least one temperature sensor should be configured
+            temp_min = user_input.get("temp_min_entity")
+            temp_max = user_input.get("temp_max_entity")
+            if not temp_min and not temp_max:
+                errors["base"] = "no_temperature_sensors"
+
+            if not errors:
+                self._weather = {
+                    "temp_min_entity": temp_min,
+                    "temp_max_entity": temp_max,
+                    "humidity_entity": user_input.get("humidity_entity"),
+                    "solar_entity": user_input.get("solar_entity"),
+                    "solar_sensor_type": user_input.get("solar_sensor_type", "w_m2"),
+                    "wind_entity": user_input.get("wind_entity"),
+                    "rain_entity": user_input.get("rain_entity"),
+                }
+                return await self.async_step_hardware()
 
         return self.async_show_form(
             step_id="weather",
