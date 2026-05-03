@@ -49,6 +49,12 @@ from custom_components.smartgardn_et0.utils.scheduling import (
     compute_next_start_voll,
 )
 from custom_components.smartgardn_et0.utils.queue import QueueItem
+from custom_components.smartgardn_et0.utils.safety import (
+    check_failsafe_needed,
+    check_frost_active,
+    should_activate_frost_lock,
+    should_release_frost_lock,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -496,15 +502,13 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         if not trafo_entity:
             return
         trafo_state = self.hass.states.get(trafo_entity)
-        if trafo_state and trafo_state.state == "on":
-            all_off = all(
-                (state := self.hass.states.get(self.entry.data["zones"][zid].get("valve_entity")))
-                and state.state == "off"
-                for zid in self.entry.data.get("zones", {})
-            )
-            if all_off:
-                _LOGGER.warning("Failsafe: trafo on but all valves off, turning off trafo")
-                await self._switch_service("turn_off", trafo_entity)
+        valve_states = {
+            zid: self.hass.states.get(self.entry.data["zones"][zid].get("valve_entity"))
+            for zid in self.entry.data.get("zones", {})
+        }
+        if check_failsafe_needed(trafo_state, valve_states):
+            _LOGGER.warning("Failsafe: trafo on but all valves off, turning off trafo")
+            await self._switch_service("turn_off", trafo_entity)
 
     # ===== Phase 4: Daily calculation (00:05) =====
 
@@ -745,12 +749,9 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
         temp_entity = self.entry.data.get("temp_entity") or self.entry.data.get("temp_min_entity")
         t_min_state = self.hass.states.get(temp_entity) if temp_entity else None
 
-        frost_active = False
-        if t_min_state and t_min_state.state not in ("unknown", "unavailable"):
-            with contextlib.suppress(ValueError):
-                frost_active = float(t_min_state.state) < frost_threshold
+        frost_active = check_frost_active(t_min_state, frost_threshold)
 
-        if frost_active and not self._frost_active:
+        if should_activate_frost_lock(frost_active, self._frost_active):
             _LOGGER.warning("Frost lock activated: stopping all irrigation")
             self._frost_active = True
             # Stop running zone if any
@@ -771,7 +772,7 @@ class IrrigationCoordinator(DataUpdateCoordinator[dict]):  # type: ignore[type-a
             # Clear queue
             self.queue.clear()
             self.hass.bus.async_fire("smartgardn_et0_frost_lock")
-        elif not frost_active and self._frost_active:
+        elif should_release_frost_lock(frost_active, self._frost_active):
             _LOGGER.info("Frost lock released")
             self._frost_active = False
             self.hass.bus.async_fire("smartgardn_et0_frost_release")
